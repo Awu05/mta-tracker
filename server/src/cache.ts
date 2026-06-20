@@ -1,23 +1,47 @@
-import type { Alert, BoardModel, DirectionGroup, Weather } from './types';
+import type { Alert, BoardModel, DirectionGroup, StationBoard, Weather } from './types';
+
+export interface StationMeta { id: string; name: string; }
+
+interface StationEntry {
+  meta: StationMeta;
+  directions: DirectionGroup[];
+  alerts: Alert[];
+  lastUpdatedMs: number | null;
+}
 
 export class BoardCache {
-  private directions: DirectionGroup[] = [];
-  private alerts: Alert[] = [];
+  private readonly entries: StationEntry[];
+  private readonly byId: Map<string, StationEntry>;
   private weather: Weather | null = null;
-  private lastUpdatedMs: number | null = null;
 
   constructor(
-    private readonly station: { id: string; name: string },
+    stations: StationMeta[],
     private readonly staleThresholdSec: number,
-  ) {}
-
-  setDirections(directions: DirectionGroup[], nowMs: number): void {
-    this.directions = directions;
-    this.lastUpdatedMs = nowMs;
+  ) {
+    this.entries = stations.map((meta) => ({
+      meta,
+      directions: [],
+      alerts: [],
+      lastUpdatedMs: null,
+    }));
+    this.byId = new Map(this.entries.map((e) => [e.meta.id, e]));
   }
 
-  setAlerts(alerts: Alert[]): void {
-    this.alerts = alerts;
+  private entry(stationId: string): StationEntry {
+    const e = this.byId.get(stationId);
+    if (!e) throw new Error(`Unknown station id: ${stationId}`);
+    return e;
+  }
+
+  setDirections(stationId: string, directions: DirectionGroup[], nowMs: number): void {
+    const e = this.entry(stationId);
+    e.directions = directions;
+    e.lastUpdatedMs = nowMs;
+  }
+
+  setAlerts(stationId: string, alerts: Alert[]): void {
+    const e = this.entry(stationId);
+    e.alerts = alerts;
   }
 
   setWeather(weather: Weather): void {
@@ -25,16 +49,28 @@ export class BoardCache {
   }
 
   get(nowMs: number): BoardModel {
-    const stale =
-      this.lastUpdatedMs === null ||
-      nowMs - this.lastUpdatedMs > this.staleThresholdSec * 1000;
+    let maxLastUpdated: number | null = null;
+    const stations: StationBoard[] = this.entries.map((e) => {
+      const stale =
+        e.lastUpdatedMs === null ||
+        nowMs - e.lastUpdatedMs > this.staleThresholdSec * 1000;
+      if (e.lastUpdatedMs !== null && (maxLastUpdated === null || e.lastUpdatedMs > maxLastUpdated)) {
+        maxLastUpdated = e.lastUpdatedMs;
+      }
+      return {
+        station: e.meta,
+        updatedAt: new Date(e.lastUpdatedMs ?? 0).toISOString(),
+        stale,
+        directions: e.directions,
+        alerts: e.alerts,
+      };
+    });
+
     return {
-      station: this.station,
-      updatedAt: this.lastUpdatedMs ? new Date(this.lastUpdatedMs).toISOString() : new Date(0).toISOString(),
-      stale,
-      directions: this.directions,
-      alerts: this.alerts,
+      updatedAt: new Date(maxLastUpdated ?? 0).toISOString(),
+      stale: stations.some((s) => s.stale),
       weather: this.weather,
+      stations,
     };
   }
 }

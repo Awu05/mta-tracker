@@ -11,8 +11,13 @@ function num(env: Env, key: string, def: number): number {
 }
 
 export function loadConfig(env: Env = process.env): AppConfig {
-  const station = env.STATION;
-  if (!station) throw new Error('Missing required env STATION (your home station stop id)');
+  const stations = (env.STATION ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  if (stations.length === 0) {
+    throw new Error('Missing required env STATION (comma-separated list of station stop ids)');
+  }
 
   const displayMode = (env.DISPLAY_MODE ?? 'auto') as AppConfig['displayMode'];
   if (!['kiosk', 'phone', 'auto'].includes(displayMode)) {
@@ -20,7 +25,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
   }
 
   return {
-    station,
+    stations,
     displayMode,
     weatherLat: num(env, 'WEATHER_LAT', 40.7128),
     weatherLon: num(env, 'WEATHER_LON', -74.006),

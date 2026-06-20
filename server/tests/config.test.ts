@@ -4,7 +4,7 @@ import { loadConfig } from '../src/config';
 describe('loadConfig', () => {
   it('parses a complete env with defaults applied', () => {
     const cfg = loadConfig({ STATION: '127', WEATHER_LAT: '40.75', WEATHER_LON: '-73.98' });
-    expect(cfg.station).toBe('127');
+    expect(cfg.stations).toEqual(['127']);
     expect(cfg.displayMode).toBe('auto');
     expect(cfg.weatherLat).toBe(40.75);
     expect(cfg.feedRefreshSec).toBe(30);
@@ -12,8 +12,19 @@ describe('loadConfig', () => {
     expect(cfg.port).toBe(8080);
   });
 
+  it('parses a comma-separated STATION list, trimming whitespace', () => {
+    const cfg = loadConfig({ STATION: '127, 635 ,A32' });
+    expect(cfg.stations).toEqual(['127', '635', 'A32']);
+  });
+
   it('throws when STATION is missing', () => {
     expect(() => loadConfig({})).toThrow(/STATION/);
+  });
+
+  it('throws when STATION is empty or whitespace', () => {
+    expect(() => loadConfig({ STATION: '' })).toThrow(/STATION/);
+    expect(() => loadConfig({ STATION: '   ' })).toThrow(/STATION/);
+    expect(() => loadConfig({ STATION: ' , , ' })).toThrow(/STATION/);
   });
 
   it('throws on invalid displayMode', () => {

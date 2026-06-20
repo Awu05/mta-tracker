@@ -32,12 +32,12 @@ async function fetchEntities(
 
 export async function pollArrivals(
   cache: BoardCache,
-  station: StationCtx,
+  stations: StationCtx[],
   decode: DecodeFn,
   fetchFn: typeof fetch = fetch,
   now: NowFn = () => Date.now(),
 ): Promise<void> {
-  const feedIds = feedsForRoutes(station.routes);
+  const feedIds = [...new Set(stations.flatMap((s) => feedsForRoutes(s.routes)))];
   const tripUrls = feedIds.map(feedUrl);
 
   // Trip feeds (per-feed isolation: failures resolve to []).
@@ -57,18 +57,20 @@ export async function pollArrivals(
   }
 
   const nowMs = now();
-  const directions: DirectionGroup[] = transformArrivals(
-    tripEntities as never[],
-    station.id,
-    nowMs,
-    { stopName, routeStyle: getRouteStyle },
-  );
-  cache.setDirections(directions, nowMs);
+  for (const station of stations) {
+    const directions: DirectionGroup[] = transformArrivals(
+      tripEntities as never[],
+      station.id,
+      nowMs,
+      { stopName, routeStyle: getRouteStyle },
+    );
+    cache.setDirections(station.id, directions, nowMs);
+  }
 }
 
 export async function pollAlerts(
   cache: BoardCache,
-  station: StationCtx,
+  stations: StationCtx[],
   decode: DecodeFn,
   fetchFn: typeof fetch = fetch,
 ): Promise<void> {
@@ -80,6 +82,8 @@ export async function pollAlerts(
     return; // do not overwrite cache; keep last-good alerts
   }
 
-  const alerts: Alert[] = transformAlerts(alertEntities as never[], station.routes);
-  cache.setAlerts(alerts);
+  for (const station of stations) {
+    const alerts: Alert[] = transformAlerts(alertEntities as never[], station.routes);
+    cache.setAlerts(station.id, alerts);
+  }
 }

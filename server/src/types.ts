@@ -26,17 +26,23 @@ export interface Weather {
   icon: string;
 }
 
-export interface BoardModel {
+export interface StationBoard {
   station: { id: string; name: string };
-  updatedAt: string;    // ISO timestamp of last successful feed update
+  updatedAt: string;    // ISO timestamp of last successful feed update for this station
   stale: boolean;
   directions: DirectionGroup[];
   alerts: Alert[];
-  weather: Weather | null;
+}
+
+export interface BoardModel {
+  updatedAt: string;        // most recent station update across stations (epoch ISO if none yet)
+  stale: boolean;           // true if ANY station is stale
+  weather: Weather | null;  // shared across stations
+  stations: StationBoard[]; // in configured order
 }
 
 export interface AppConfig {
-  station: string;
+  stations: string[];
   displayMode: 'kiosk' | 'phone' | 'auto';
   weatherLat: number;
   weatherLon: number;
