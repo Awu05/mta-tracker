@@ -1,6 +1,6 @@
 # MTA Display Tracker
 
-A self-hosted NYC subway departure board for a single home station. Runs on a
+A self-hosted NYC subway departure board for one or more home stations. Runs on a
 Raspberry Pi Zero 2 W in Docker. Node + TypeScript backend, React frontend.
 Pulls public MTA GTFS-realtime feeds (no API key required for subway) and
 Open-Meteo weather (no key). See `docs/superpowers/specs/` and
@@ -20,10 +20,10 @@ All config is via env vars (see `.env.example`):
 
 | Variable | Meaning |
 |---|---|
-| `STATION` | Your home station's GTFS parent stop id (see `server/src/data/stations.json`) |
+| `STATION` | One or more home station GTFS parent stop ids, comma-separated (e.g. `127,635`); see `server/src/data/stations.json` |
 | `DISPLAY_MODE` | `kiosk` (wall display) \| `phone` \| `auto` |
 | `WEATHER_LAT` / `WEATHER_LON` | Weather location |
-| `FEED_REFRESH_SEC` / `WEATHER_REFRESH_SEC` / `STALE_THRESHOLD_SEC` | Polling + staleness |
+| `FEED_REFRESH_SEC` / `WEATHER_REFRESH_SEC` / `ALERTS_REFRESH_SEC` / `STALE_THRESHOLD_SEC` | Polling + staleness (alerts default 120s — alerts change slowly) |
 | `MTA_API_KEY` | Unused for subway; reserved for future bus support |
 | `PORT` | HTTP port (default 8080) |
 
