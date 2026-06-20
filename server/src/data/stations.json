@@ -1,0 +1,7 @@
+{
+  "127": { "name": "Times Sq–42 St", "routes": ["1", "2", "3", "7", "N", "Q", "R", "W", "S"] },
+  "631": { "name": "Grand Central–42 St", "routes": ["4", "5", "6", "7", "S"] },
+  "635": { "name": "14 St–Union Sq", "routes": ["4", "5", "6", "L", "N", "Q", "R", "W"] },
+  "A32": { "name": "W 4 St–Wash Sq", "routes": ["A", "C", "E", "B", "D", "F", "M"] },
+  "R31": { "name": "Atlantic Av–Barclays Ctr", "routes": ["B", "D", "N", "Q", "R", "2", "3", "4", "5"] }
+}
