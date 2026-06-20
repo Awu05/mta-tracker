@@ -12,6 +12,8 @@ const CODES: Record<number, [string, string]> = {
   95: ['Thunderstorm', 'storm'], 96: ['Thunderstorm', 'storm'], 99: ['Thunderstorm', 'storm'],
 };
 
+const WEATHER_TIMEOUT_MS = 12_000;
+
 export async function fetchWeather(
   lat: number,
   lon: number,
@@ -20,9 +22,15 @@ export async function fetchWeather(
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
     `&current=temperature_2m,weather_code&temperature_unit=fahrenheit`;
-  const res = await fetchFn(url);
-  if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
-  const data = (await res.json()) as { current: { temperature_2m: number; weather_code: number } };
-  const [condition, icon] = CODES[data.current.weather_code] ?? ['Unknown', 'cloudy'];
-  return { tempF: Math.round(data.current.temperature_2m), condition, icon };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WEATHER_TIMEOUT_MS);
+  try {
+    const res = await fetchFn(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`Weather fetch failed: ${res.status}`);
+    const data = (await res.json()) as { current: { temperature_2m: number; weather_code: number } };
+    const [condition, icon] = CODES[data.current.weather_code] ?? ['Unknown', 'cloudy'];
+    return { tempF: Math.round(data.current.temperature_2m), condition, icon };
+  } finally {
+    clearTimeout(timer);
+  }
 }

@@ -11,10 +11,13 @@ export class BoardCache {
     private readonly staleThresholdSec: number,
   ) {}
 
-  setBoard(directions: DirectionGroup[], alerts: Alert[], nowMs: number): void {
+  setDirections(directions: DirectionGroup[], nowMs: number): void {
     this.directions = directions;
-    this.alerts = alerts;
     this.lastUpdatedMs = nowMs;
+  }
+
+  setAlerts(alerts: Alert[]): void {
+    this.alerts = alerts;
   }
 
   setWeather(weather: Weather): void {

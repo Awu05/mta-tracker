@@ -8,6 +8,7 @@ describe('loadConfig', () => {
     expect(cfg.displayMode).toBe('auto');
     expect(cfg.weatherLat).toBe(40.75);
     expect(cfg.feedRefreshSec).toBe(30);
+    expect(cfg.alertsRefreshSec).toBe(120);
     expect(cfg.port).toBe(8080);
   });
 

@@ -8,21 +8,29 @@ import { getRouteStyle, stopName } from '../staticGtfs';
 export type DecodeFn = (bytes: Uint8Array) => { entity?: unknown[] };
 type NowFn = () => number;
 
-interface StationCtx { id: string; name: string; routes: string[]; }
+export interface StationCtx { id: string; name: string; routes: string[]; }
+
+const FETCH_TIMEOUT_MS = 12_000;
 
 async function fetchEntities(
   url: string,
   decode: DecodeFn,
   fetchFn: typeof fetch,
 ): Promise<unknown[]> {
-  const res = await fetchFn(url);
-  if (!res.ok) throw new Error(`Feed ${url} returned ${res.status}`);
-  const buf = await res.arrayBuffer();
-  const msg = decode(new Uint8Array(buf));
-  return msg.entity ?? [];
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetchFn(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`Feed ${url} returned ${res.status}`);
+    const buf = await res.arrayBuffer();
+    const msg = decode(new Uint8Array(buf));
+    return msg.entity ?? [];
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-export async function pollOnce(
+export async function pollArrivals(
   cache: BoardCache,
   station: StationCtx,
   decode: DecodeFn,
@@ -43,14 +51,6 @@ export async function pollOnce(
     else console.error('[poller] trip feed failed:', r.reason);
   }
 
-  // Alerts feed (independent; failure -> empty alerts).
-  let alertEntities: unknown[] = [];
-  try {
-    alertEntities = await fetchEntities(ALERTS_URL, decode, fetchFn);
-  } catch (err) {
-    console.error('[poller] alerts feed failed:', err);
-  }
-
   if (!anyTripOk) {
     console.error('[poller] all trip feeds failed; keeping last-good board');
     return; // do not overwrite cache; staleness will flag it
@@ -63,6 +63,23 @@ export async function pollOnce(
     nowMs,
     { stopName, routeStyle: getRouteStyle },
   );
+  cache.setDirections(directions, nowMs);
+}
+
+export async function pollAlerts(
+  cache: BoardCache,
+  station: StationCtx,
+  decode: DecodeFn,
+  fetchFn: typeof fetch = fetch,
+): Promise<void> {
+  let alertEntities: unknown[];
+  try {
+    alertEntities = await fetchEntities(ALERTS_URL, decode, fetchFn);
+  } catch (err) {
+    console.error('[poller] alerts feed failed; keeping last-good alerts:', err);
+    return; // do not overwrite cache; keep last-good alerts
+  }
+
   const alerts: Alert[] = transformAlerts(alertEntities as never[], station.routes);
-  cache.setBoard(directions, alerts, nowMs);
+  cache.setAlerts(alerts);
 }

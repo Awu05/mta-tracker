@@ -41,6 +41,7 @@ export interface AppConfig {
   weatherLat: number;
   weatherLon: number;
   feedRefreshSec: number;
+  alertsRefreshSec: number;
   weatherRefreshSec: number;
   staleThresholdSec: number;
   mtaApiKey: string;

@@ -3,7 +3,7 @@ import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import { loadConfig } from './config';
 import { BoardCache } from './cache';
 import { createApp } from './api';
-import { pollOnce, type DecodeFn } from './feeds/poller';
+import { pollArrivals, pollAlerts, type DecodeFn } from './feeds/poller';
 import { getStation } from './staticGtfs';
 import { fetchWeather } from './weather';
 
@@ -16,19 +16,42 @@ const cache = new BoardCache({ id: station.id, name: station.name }, config.stal
 const decode: DecodeFn = (bytes) =>
   GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(bytes) as { entity?: unknown[] };
 
-async function pollFeeds() {
+let arrivalsInFlight = false;
+async function pollArrivalsCycle() {
+  if (arrivalsInFlight) return;
+  arrivalsInFlight = true;
   try {
-    await pollOnce(cache, station, decode);
+    await pollArrivals(cache, station, decode);
   } catch (err) {
-    console.error('[index] poll cycle error:', err);
+    console.error('[index] arrivals poll cycle error:', err);
+  } finally {
+    arrivalsInFlight = false;
   }
 }
 
-async function pollWeather() {
+let alertsInFlight = false;
+async function pollAlertsCycle() {
+  if (alertsInFlight) return;
+  alertsInFlight = true;
+  try {
+    await pollAlerts(cache, station, decode);
+  } catch (err) {
+    console.error('[index] alerts poll cycle error:', err);
+  } finally {
+    alertsInFlight = false;
+  }
+}
+
+let weatherInFlight = false;
+async function pollWeatherCycle() {
+  if (weatherInFlight) return;
+  weatherInFlight = true;
   try {
     cache.setWeather(await fetchWeather(config.weatherLat, config.weatherLon));
   } catch (err) {
     console.error('[index] weather error:', err);
+  } finally {
+    weatherInFlight = false;
   }
 }
 
@@ -37,10 +60,12 @@ const staticDir = path.resolve(__dirname, '../public');
 
 const app = createApp(cache, { displayMode: config.displayMode }, staticDir);
 
-void pollFeeds();
-void pollWeather();
-setInterval(pollFeeds, config.feedRefreshSec * 1000);
-setInterval(pollWeather, config.weatherRefreshSec * 1000);
+void pollArrivalsCycle();
+void pollAlertsCycle();
+void pollWeatherCycle();
+setInterval(pollArrivalsCycle, config.feedRefreshSec * 1000);
+setInterval(pollAlertsCycle, config.alertsRefreshSec * 1000);
+setInterval(pollWeatherCycle, config.weatherRefreshSec * 1000);
 
 app.listen(config.port, () => {
   console.log(`MTA tracker listening on :${config.port} (station ${station.name})`);

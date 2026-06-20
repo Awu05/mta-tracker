@@ -16,7 +16,7 @@ describe('BoardCache', () => {
 
   it('marks fresh right after an update and stale after the threshold', () => {
     const c = new BoardCache(station, 90);
-    c.setBoard(dirs, [], 1_700_000_000_000);
+    c.setDirections(dirs, 1_700_000_000_000);
     expect(c.get(1_700_000_030_000).stale).toBe(false); // +30s
     expect(c.get(1_700_000_100_000).stale).toBe(true);  // +100s > 90s
   });
@@ -25,5 +25,20 @@ describe('BoardCache', () => {
     const c = new BoardCache(station, 90);
     c.setWeather({ tempF: 72, condition: 'Clear', icon: 'clear' });
     expect(c.get(1_700_000_000_000).weather?.tempF).toBe(72);
+  });
+
+  it('setAlerts populates alerts without affecting staleness', () => {
+    const c = new BoardCache(station, 90);
+    c.setDirections(dirs, 1_700_000_000_000);
+    // Alerts arrive later, well past directions' update time.
+    c.setAlerts([{ routes: ['N'], severity: 'delay', text: 'Delays' }]);
+
+    const freshCheck = c.get(1_700_000_030_000); // +30s from directions update
+    expect(freshCheck.stale).toBe(false);
+    expect(freshCheck.alerts[0].text).toBe('Delays');
+
+    const staleCheck = c.get(1_700_000_100_000); // +100s from directions update
+    expect(staleCheck.stale).toBe(true); // staleness still tracks directions, not alerts
+    expect(staleCheck.alerts[0].text).toBe('Delays'); // alerts still present
   });
 });
