@@ -1,1 +1,92 @@
-/* replaced in Task 12 */
+:root {
+  --bg: #0b0b0d;
+  --panel: #141417;
+  --divider: #2a2a2e;
+  --row-divider: #1b1b1f;
+  --text: #ffffff;
+  --muted: #8a8f98;
+  --dim: #cfd2d6;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { margin: 0; height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+.app { min-height: 100vh; padding: 16px; }
+
+.loading {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 20px;
+}
+
+.board { max-width: 1100px; margin: 0 auto; }
+
+.board-top {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  border-bottom: 1px solid var(--divider); padding-bottom: 12px; margin-bottom: 18px;
+}
+
+.station { font-size: 26px; font-weight: 700; letter-spacing: .3px; }
+
+.stale-badge {
+  margin-left: 12px; font-size: 12px; font-weight: 600; color: #f5c542;
+  border: 1px solid #5c4408; border-radius: 6px; padding: 2px 8px; vertical-align: middle;
+}
+
+.meta { text-align: right; color: var(--dim); }
+.clock { font-size: 30px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.weather { font-size: 15px; margin-top: 2px; }
+
+.dir-label {
+  font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--muted); margin-bottom: 10px;
+}
+.dir-arrow { margin-right: 4px; }
+
+.cols { display: flex; gap: 32px; }
+.col { flex: 1; }
+
+.arr {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--row-divider);
+}
+.arr:last-child { border-bottom: none; }
+
+.bullet {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 18px; flex: 0 0 auto;
+}
+
+.dest { flex: 1; font-size: 18px; color: #e8eaed; }
+.mins { font-weight: 700; font-size: 22px; }
+.mins small { font-size: 13px; font-weight: 400; color: var(--muted); }
+
+.empty { color: var(--muted); font-size: 15px; padding: 10px 0; }
+
+.alerts {
+  margin-top: 18px; background: #1a1206; border: 1px solid #5c4408;
+  border-radius: 8px; padding: 10px 14px; font-size: 14px; color: #f5c542;
+}
+.alert-line { padding: 2px 0; }
+.alert-line b { color: #ffd866; }
+
+/* Kiosk mode: bigger type for a wall display */
+.mode-kiosk .station { font-size: 34px; }
+.mode-kiosk .clock { font-size: 40px; }
+.mode-kiosk .dest { font-size: 22px; }
+.mode-kiosk .mins { font-size: 28px; }
+.mode-kiosk .bullet { width: 42px; height: 42px; font-size: 22px; }
+
+/* Responsive: stack columns on narrow screens (phone) */
+@media (max-width: 700px) {
+  .cols { flex-direction: column; gap: 20px; }
+  .station { font-size: 22px; }
+  .clock { font-size: 26px; }
+}
