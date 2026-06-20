@@ -38,4 +38,22 @@ describe('transformAlerts', () => {
     expect(alerts).toHaveLength(1);
     expect(alerts[0].severity).toBe('info');
   });
+
+  it('maps numeric protobuf enum effects to severity', () => {
+    const numericAlert = (routes: string[], header: string, effect: number) => ({
+      alert: {
+        effect,
+        informedEntity: routes.map((routeId) => ({ routeId })),
+        headerText: { translation: [{ text: header, language: 'en' }] },
+      },
+    });
+    expect(transformAlerts([numericAlert(['1'], 'Big delays', 3)], ['1'])[0].severity).toBe('delay');
+    expect(transformAlerts([numericAlert(['1'], 'No trains', 1)], ['1'])[0].severity).toBe('suspended');
+    expect(transformAlerts([numericAlert(['1'], 'Detour', 4)], ['1'])[0].severity).toBe('info');
+  });
+
+  it('does not throw on a numeric effect (real-feed shape)', () => {
+    const numericAlert = { alert: { effect: 3, informedEntity: [{ routeId: '1' }], headerText: { translation: [{ text: 'x', language: 'en' }] } } };
+    expect(() => transformAlerts([numericAlert], ['1'])).not.toThrow();
+  });
 });

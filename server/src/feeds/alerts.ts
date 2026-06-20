@@ -2,14 +2,22 @@ import type { Alert } from '../types';
 
 interface AlertEntity {
   alert?: {
-    effect?: string | null;
+    effect?: string | number | null;
     informedEntity?: Array<{ routeId?: string | null }> | null;
     headerText?: { translation?: Array<{ text?: string | null; language?: string | null }> | null } | null;
   } | null;
 }
 
-function severityFromEffect(effect?: string | null): string {
-  if (!effect) return 'info';
+// transit_realtime.Alert.Effect enum -> our severity buckets
+const EFFECT_SEVERITY: Record<number, string> = {
+  1: 'suspended', // NO_SERVICE
+  2: 'delay',     // REDUCED_SERVICE
+  3: 'delay',     // SIGNIFICANT_DELAYS
+};
+
+function severityFromEffect(effect?: string | number | null): string {
+  if (effect == null) return 'info';
+  if (typeof effect === 'number') return EFFECT_SEVERITY[effect] ?? 'info';
   const e = effect.toUpperCase();
   if (e.includes('DELAY')) return 'delay';
   if (e.includes('NO_SERVICE') || e.includes('SUSPEND')) return 'suspended';
