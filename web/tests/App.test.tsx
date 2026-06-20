@@ -3,10 +3,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import App from '../src/App';
 
 const board = {
-  station: { id: '127', name: 'Times Sq–42 St' },
   updatedAt: '', stale: false, displayMode: 'kiosk',
-  directions: [{ direction: 'N', label: 'Uptown', arrivals: [{ route: '1', color: '#ee352e', textColor: '#fff', destination: 'Van Cortlandt Park', minutes: 2 }] }],
-  alerts: [], weather: { tempF: 72, condition: 'Clear', icon: 'clear' },
+  weather: { tempF: 72, condition: 'Clear', icon: 'clear' },
+  stations: [
+    { station: { id: '127', name: 'Times Sq–42 St' }, updatedAt: '', stale: false,
+      directions: [{ direction: 'N', label: 'Uptown', arrivals: [{ route: '1', color: '#ee352e', textColor: '#fff', destination: 'Van Cortlandt Park', minutes: 2 }] }],
+      alerts: [] },
+  ],
 };
 
 beforeEach(() => {

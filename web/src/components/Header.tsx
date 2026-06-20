@@ -1,13 +1,13 @@
 import type { Weather } from '../types';
 import { Clock } from './Clock';
 
-interface Props { stationName: string; weather: Weather | null; stale: boolean; }
+interface Props { weather: Weather | null; stale: boolean; }
 
-export function Header({ stationName, weather, stale }: Props) {
+export function Header({ weather, stale }: Props) {
   return (
     <div className="board-top">
-      <div className="station">
-        {stationName}
+      <div className="app-title">
+        Departures
         {stale && <span className="stale-badge">reconnecting…</span>}
       </div>
       <div className="meta">

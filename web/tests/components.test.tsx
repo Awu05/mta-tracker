@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { LineBullet } from '../src/components/LineBullet';
 import { DirectionColumn } from '../src/components/DirectionColumn';
 import { Alerts } from '../src/components/Alerts';
+import { StationSection } from '../src/components/StationSection';
 import type { DirectionGroup } from '../src/types';
 
 describe('components', () => {
@@ -34,5 +35,25 @@ describe('components', () => {
     expect(container).toBeEmptyDOMElement();
     rerender(<Alerts alerts={[{ routes: ['N', 'Q'], severity: 'delay', text: 'Delays near 57 St' }]} />);
     expect(screen.getByText(/Delays near 57 St/)).toBeInTheDocument();
+  });
+
+  it('StationSection renders the station name, direction, destination, and minutes', () => {
+    render(
+      <StationSection
+        board={{
+          station: { id: '127', name: 'Times Sq–42 St' },
+          updatedAt: '',
+          stale: false,
+          directions: [
+            { direction: 'N', label: 'Uptown', arrivals: [{ route: '1', color: '#ee352e', textColor: '#fff', destination: 'Van Cortlandt Park', minutes: 2 }] },
+          ],
+          alerts: [],
+        }}
+      />
+    );
+    expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument();
+    expect(screen.getByText('Uptown')).toBeInTheDocument();
+    expect(screen.getByText('Van Cortlandt Park')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
   });
 });

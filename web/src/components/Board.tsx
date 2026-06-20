@@ -1,16 +1,12 @@
 import type { Board as BoardData } from '../types';
 import { Header } from './Header';
-import { DirectionColumn } from './DirectionColumn';
-import { Alerts } from './Alerts';
+import { StationSection } from './StationSection';
 
 export function Board({ board }: { board: BoardData }) {
   return (
     <div className="board">
-      <Header stationName={board.station.name} weather={board.weather} stale={board.stale} />
-      <div className="cols">
-        {board.directions.map((g) => <DirectionColumn key={g.direction} group={g} />)}
-      </div>
-      <Alerts alerts={board.alerts} />
+      <Header weather={board.weather} stale={board.stale} />
+      {board.stations.map((s) => <StationSection key={s.station.id} board={s} />)}
     </div>
   );
 }

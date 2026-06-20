@@ -26,12 +26,18 @@ export interface Weather {
   icon: string;
 }
 
-export interface Board {
+export interface StationBoard {
   station: { id: string; name: string };
   updatedAt: string;
   stale: boolean;
   directions: DirectionGroup[];
   alerts: Alert[];
+}
+
+export interface Board {
+  updatedAt: string;
+  stale: boolean;
   weather: Weather | null;
+  stations: StationBoard[];
   displayMode: 'kiosk' | 'phone' | 'auto';
 }
