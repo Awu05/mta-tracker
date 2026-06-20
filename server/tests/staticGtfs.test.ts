@@ -18,8 +18,9 @@ describe('staticGtfs', () => {
   });
 
   it('resolves a stop name, stripping the N/S suffix', () => {
-    expect(stopName('127N')).toBe('Times Sq–42 St');
-    expect(stopName('127')).toBe('Times Sq–42 St');
+    expect(stopName('127N')).toMatch(/Times Sq/);
+    expect(stopName('127')).toMatch(/Times Sq/);
     expect(stopName('999X')).toBe('999X'); // unknown -> echo id
+    expect(stopName('D01N')).toMatch(/Norwood/); // resolved from complete stops.json, not the curated 5
   });
 });
