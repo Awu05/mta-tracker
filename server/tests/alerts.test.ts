@@ -56,4 +56,14 @@ describe('transformAlerts', () => {
     const numericAlert = { alert: { effect: 3, informedEntity: [{ routeId: '1' }], headerText: { translation: [{ text: 'x', language: 'en' }] } } };
     expect(() => transformAlerts([numericAlert], ['1'])).not.toThrow();
   });
+
+  it('infers severity from header text when effect is unknown (real-feed shape)', () => {
+    const a = (text: string, effect = 8) => ({
+      alert: { effect, informedEntity: [{ routeId: '1' }], headerText: { translation: [{ text, language: 'en' }] } },
+    });
+    expect(transformAlerts([a('Southbound [1] trains are delayed')], ['1'])[0].severity).toBe('delay');
+    expect(transformAlerts([a('No [1] train service in both directions')], ['1'])[0].severity).toBe('suspended');
+    expect(transformAlerts([a('[1] trains are running with longer wait times')], ['1'])[0].severity).toBe('delay');
+    expect(transformAlerts([a('Elevator at station is out of service')], ['1'])[0].severity).toBe('info');
+  });
 });

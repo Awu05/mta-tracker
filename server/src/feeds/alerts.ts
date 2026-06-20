@@ -15,13 +15,36 @@ const EFFECT_SEVERITY: Record<number, string> = {
   3: 'delay',     // SIGNIFICANT_DELAYS
 };
 
-function severityFromEffect(effect?: string | number | null): string {
-  if (effect == null) return 'info';
-  if (typeof effect === 'number') return EFFECT_SEVERITY[effect] ?? 'info';
+function severityFromEffect(effect?: string | number | null): string | null {
+  if (effect == null) return null;
+  if (typeof effect === 'number') return EFFECT_SEVERITY[effect] ?? null;
   const e = effect.toUpperCase();
   if (e.includes('DELAY')) return 'delay';
   if (e.includes('NO_SERVICE') || e.includes('SUSPEND')) return 'suspended';
-  return 'info';
+  return null;
+}
+
+// The real MTA subway-alerts feed sets effect = 8 (UNKNOWN_EFFECT) on every
+// alert; the actual severity signal lives in the MTA "mercury" protobuf
+// extension, which gtfs-realtime-bindings does not decode. The headerText is
+// reliable, so we infer severity from it and only fall back to the numeric
+// enum mapping above when the text gives us nothing.
+function severityFromText(text: string): string | null {
+  const t = text.toLowerCase();
+  if (
+    t.includes('no service') ||
+    /\bno\b[^.]*\btrain service\b/.test(t) ||
+    t.includes('suspend') ||
+    t.includes('not running')
+  ) {
+    return 'suspended';
+  }
+  if (t.includes('delay') || t.includes('longer wait') || t.includes('running slow') || t.includes('expect delays')) return 'delay';
+  return null;
+}
+
+function severity(effect: string | number | null | undefined, text: string): string {
+  return severityFromEffect(effect) ?? severityFromText(text) ?? 'info';
 }
 
 function headerText(a: NonNullable<AlertEntity['alert']>): string {
@@ -42,7 +65,7 @@ export function transformAlerts(entities: AlertEntity[], routes: string[]): Aler
     if (!alertRoutes.some((r) => wanted.has(r))) continue;
     const text = headerText(a);
     if (!text) continue;
-    out.push({ routes: [...new Set(alertRoutes)], severity: severityFromEffect(a.effect), text });
+    out.push({ routes: [...new Set(alertRoutes)], severity: severity(a.effect, text), text });
   }
   return out;
 }
