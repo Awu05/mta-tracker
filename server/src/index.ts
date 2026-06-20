@@ -1,4 +1,3 @@
-import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import { loadConfig } from './config';
@@ -34,8 +33,7 @@ async function pollWeather() {
 }
 
 // Static dir: built web app copied next to dist in the Docker image.
-const here = path.dirname(fileURLToPath(import.meta.url));
-const staticDir = path.resolve(here, '../public');
+const staticDir = path.resolve(__dirname, '../public');
 
 const app = createApp(cache, { displayMode: config.displayMode }, staticDir);
 

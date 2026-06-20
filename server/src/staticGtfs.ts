@@ -1,5 +1,5 @@
-import routesData from './data/routes.json' with { type: 'json' };
-import stationsData from './data/stations.json' with { type: 'json' };
+import routesData from './data/routes.json';
+import stationsData from './data/stations.json';
 
 export interface RouteStyle { color: string; textColor: string; }
 export interface StationInfo { name: string; routes: string[]; }
