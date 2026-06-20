@@ -36,6 +36,23 @@ stations from the official GTFS static feed:
 1. Download the subway GTFS static zip from https://www.mta.info/developers and extract `stops.txt`.
 2. `cd server && npx tsx scripts/build-stations.ts path/to/stops.txt [routes-by-station.json]`
 
+There are two separate data files generated from GTFS static `stops.txt`, each
+with a different purpose:
+
+- **`server/src/data/stations.json`** (via `build-stations.ts`, above) is a
+  small, curated set of *selectable home stations*, each with its route list.
+  This is what populates `STATION` choices and tells the poller which MTA
+  feeds to subscribe to for your configured station.
+- **`server/src/data/stops.json`** (via `build-stops.ts`) is the **complete**
+  stop-id -> name map for every parent station in the system. It's used to
+  resolve human-readable destination names (e.g. "Flatbush Av") on arrivals,
+  regardless of which station you've configured. Regenerate it to refresh the
+  full station name list:
+
+  ```bash
+  cd server && npx tsx scripts/build-stops.ts path/to/stops.txt
+  ```
+
 ## Kiosk display (HDMI)
 
 Run a fullscreen browser pointed at the Pi, e.g. on the Pi itself:
