@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import App from '../src/App';
 
 const board = {
-  updatedAt: '', stale: false, displayMode: 'kiosk',
+  updatedAt: '', stale: false, displayMode: 'kiosk', compact: false,
   weather: { tempF: 72, condition: 'Clear', icon: 'clear' },
   stations: [
     { station: { id: '127', name: 'Times Sq–42 St' }, updatedAt: '', stale: false,
@@ -16,6 +16,10 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => board }));
 });
 
+afterEach(() => {
+  window.history.replaceState({}, '', '/');
+});
+
 describe('App', () => {
   it('fetches the board on mount and renders it', async () => {
     render(<App />);
@@ -26,5 +30,42 @@ describe('App', () => {
   it('shows a loading state before data arrives', () => {
     render(<App />);
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  });
+
+  it('applies compact mode from the server flag, hiding info alerts', async () => {
+    const compactBoard = {
+      ...board,
+      compact: true,
+      stations: [
+        {
+          ...board.stations[0],
+          alerts: [
+            { routes: ['2', '3'], severity: 'delay', text: 'Severe delays reported' },
+            { routes: ['1'], severity: 'info', text: '1 skips 50 St' },
+          ],
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => compactBoard }));
+    render(<App />);
+    await waitFor(() => expect(screen.getByText(/Severe delays reported/)).toBeInTheDocument());
+    expect(screen.queryByText(/1 skips 50 St/)).not.toBeInTheDocument();
+    expect(document.querySelector('.app.compact')).toBeInTheDocument();
+  });
+
+  it('URL ?compact=1 overrides a non-compact server flag', async () => {
+    window.history.replaceState({}, '', '/?compact=1');
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
+    expect(document.querySelector('.app.compact')).toBeInTheDocument();
+  });
+
+  it('URL ?compact=0 overrides a compact server flag', async () => {
+    const compactBoard = { ...board, compact: true };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => compactBoard }));
+    window.history.replaceState({}, '', '/?compact=0');
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
+    expect(document.querySelector('.app.compact')).not.toBeInTheDocument();
   });
 });

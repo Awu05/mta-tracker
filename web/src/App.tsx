@@ -5,6 +5,14 @@ import { Board } from './components/Board';
 
 const POLL_MS = 10_000;
 
+function compactOverride(): boolean | null {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('compact')) return null;
+  const v = (params.get('compact') ?? '').trim().toLowerCase();
+  if (v === '' || ['1', 'true', 'yes', 'on'].includes(v)) return true;
+  return false; // '0','false','no','off', or anything else
+}
+
 export default function App() {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [error, setError] = useState(false);
@@ -29,9 +37,11 @@ export default function App() {
     return <div className="loading">{error ? 'Cannot reach server…' : 'Loading…'}</div>;
   }
   const display = error ? { ...board, stale: true } : board;
+  const override = compactOverride();
+  const compact = override !== null ? override : board.compact;
   return (
-    <div className={`app mode-${board.displayMode}`}>
-      <Board board={display} />
+    <div className={`app mode-${board.displayMode}${compact ? ' compact' : ''}`}>
+      <Board board={display} compact={compact} />
     </div>
   );
 }

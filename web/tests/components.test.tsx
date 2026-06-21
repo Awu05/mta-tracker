@@ -30,6 +30,18 @@ describe('components', () => {
     expect(screen.getByText(/no trains/i)).toBeInTheDocument();
   });
 
+  it('DirectionColumn caps arrivals at 3 in compact mode', () => {
+    const group: DirectionGroup = {
+      direction: 'N', label: 'Uptown',
+      arrivals: [1, 2, 3, 4, 5].map((n) => ({
+        route: '1', color: '#ee352e', textColor: '#fff', destination: `Stop ${n}`, minutes: n,
+      })),
+    };
+    const { container } = render(<DirectionColumn group={group} compact />);
+    expect(container.querySelectorAll('.arr')).toHaveLength(3);
+    expect(screen.queryByText('Stop 4')).not.toBeInTheDocument();
+  });
+
   it('Alerts renders nothing when empty and a band when present', () => {
     const { container, rerender } = render(<Alerts alerts={[]} />);
     expect(container).toBeEmptyDOMElement();
@@ -37,9 +49,26 @@ describe('components', () => {
     expect(screen.getByText(/Delays near 57 St/)).toBeInTheDocument();
   });
 
+  it('Alerts in compact mode shows only severe alerts plus a muted summary', () => {
+    render(
+      <Alerts
+        compact
+        alerts={[
+          { routes: ['2', '3'], severity: 'delay', text: 'Severe delays' },
+          { routes: ['1'], severity: 'suspended', text: 'No 1 service' },
+          { routes: ['1'], severity: 'info', text: '1 skips 50 St' },
+        ]}
+      />
+    );
+    expect(screen.getByText(/Severe delays/)).toBeInTheDocument();
+    expect(screen.queryByText(/1 skips 50 St/)).not.toBeInTheDocument();
+    expect(screen.getByText(/1 info/)).toBeInTheDocument();
+  });
+
   it('StationSection renders the station name, direction, destination, and minutes', () => {
     render(
       <StationSection
+        compact={false}
         board={{
           station: { id: '127', name: 'Times Sq–42 St' },
           updatedAt: '',

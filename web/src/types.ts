@@ -40,4 +40,5 @@ export interface Board {
   weather: Weather | null;
   stations: StationBoard[];
   displayMode: 'kiosk' | 'phone' | 'auto';
+  compact: boolean;
 }

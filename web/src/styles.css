@@ -90,6 +90,7 @@ body {
 }
 .alert-line { padding: 2px 0; }
 .alert-line b { color: #ffd866; }
+.alert-summary { color: var(--muted); margin-top: 4px; }
 
 /* Kiosk mode: bigger type for a wall display */
 .mode-kiosk .station { font-size: 34px; }
@@ -104,4 +105,14 @@ body {
   .station { font-size: 22px; }
   .clock { font-size: 26px; }
 }
+
+/* Compact mode: denser layout for small / e-ink panels */
+.compact .arr { padding: 5px 0; }
+.compact .dest { font-size: 15px; }
+.compact .mins { font-size: 16px; }
+.compact .bullet { width: 26px; height: 26px; font-size: 14px; }
+.compact .station { font-size: 20px; }
+.compact .station-section { margin-top: 14px; padding-top: 10px; }
+.compact .alerts { font-size: 12.5px; padding: 8px 10px; margin-top: 12px; }
+.compact .alert-summary { margin-top: 6px; padding-top: 4px; border-top: 1px solid #5c4408; }
 

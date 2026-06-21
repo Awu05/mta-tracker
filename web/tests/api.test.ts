@@ -3,7 +3,7 @@ import { fetchBoard } from '../src/api';
 
 describe('fetchBoard', () => {
   it('GETs /api/board and returns the parsed board', async () => {
-    const board = { stations: [], weather: null, stale: false, updatedAt: '', displayMode: 'kiosk' };
+    const board = { stations: [], weather: null, stale: false, updatedAt: '', displayMode: 'kiosk', compact: false };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => board }));
     const result = await fetchBoard();
     expect(result.stations).toEqual([]);
