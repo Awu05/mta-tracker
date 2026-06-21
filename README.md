@@ -3,18 +3,19 @@
 A self-hosted **NYC subway departure board** for one or more home stations — built to run
 on a Raspberry Pi Zero 2 W in Docker, but it runs anywhere Node + Docker do.
 
-It pulls the **public MTA GTFS-realtime feeds** (no API key required for subway) and
-**Open-Meteo** weather (no key), and serves a clean, dark, glanceable board: live arrival
-countdowns split by direction, service alerts, colored line bullets, a clock, and current
-weather. The backend exposes a small renderer-agnostic JSON API, so the React board is just
-one possible front end.
+It pulls the **public MTA GTFS-realtime feeds** (no API key required for subway), **MTA Bus
+Time** (SIRI; needs a free key) for buses, and **Open-Meteo** weather (no key), and serves a
+clean, dark, glanceable board: live arrival countdowns, service alerts, colored line bullets,
+a clock, and current weather. The backend exposes a small renderer-agnostic JSON API, so the
+React board is just one possible front end.
 
 ![board](docs/board-preview.png)
 
 ## Features
 
-- 🚇 **Live arrivals** for any station(s), split into Uptown / Downtown with minute countdowns.
-- 🏙️ **Multiple stations** at once — comma-separated config, rendered as stacked sections.
+- 🚇 **Live subway arrivals** for any station(s), split into Uptown / Downtown with minute countdowns.
+- 🚌 **Live bus arrivals** (MTA Bus Time) for any stop(s) — a single soonest-first list per stop, with "approaching / N stops away" when there's no ETA.
+- 🏙️ **Multiple stations/stops** at once — comma-separated config, rendered as stacked sections.
 - ⚠️ **Service alerts** per station, with severity (delay / suspended / info) inferred from the feed.
 - 🎨 **Official line bullets** (correct MTA colors) for quick scanning.
 - 🌤️ **Weather + clock** in a shared top bar.
@@ -40,6 +41,7 @@ All configuration is environment variables (see [`.env.example`](.env.example)):
 | Variable | Meaning |
 |---|---|
 | `STATION` | One or more home-station GTFS parent stop ids, **comma-separated** (e.g. `127,R01`). See [Finding your station id](#finding-your-station-id). |
+| `BUS_STOPS` | Optional MTA bus stop code(s), **comma-separated** (e.g. `401687,404923`). Requires `MTA_API_KEY`. See [Bus stops](#bus-stops). |
 | `DISPLAY_MODE` | `kiosk` (large type for a wall display) \| `phone` \| `auto` |
 | `COMPACT` | Default compact view (`true`/`false`) — denser layout, fewer arrivals, severe-only alerts. Overridable per device via `?compact=1`/`?compact=0`. See [Compact view](#compact-view). |
 | `WEATHER_LAT` / `WEATHER_LON` | Weather location (Open-Meteo, no key) |
@@ -47,7 +49,7 @@ All configuration is environment variables (see [`.env.example`](.env.example)):
 | `ALERTS_REFRESH_SEC` | Alerts feed poll interval (default `120` — alerts change slowly) |
 | `WEATHER_REFRESH_SEC` | Weather poll interval (default `600`) |
 | `STALE_THRESHOLD_SEC` | When to flag arrivals as stale (default `90`) |
-| `MTA_API_KEY` | Unused for subway; reserved for future bus (SIRI) support |
+| `MTA_API_KEY` | MTA Bus Time API key — required only when `BUS_STOPS` is set (subway needs no key). |
 | `PORT` | HTTP port (default `8080`) |
 
 ### A note on station "complexes"
@@ -107,9 +109,31 @@ The station data is generated from the MTA's official GTFS **static** feed. To r
 - **`stations.json`** = every station with its route list; drives which feeds to poll for your `STATION`(s) and alert filtering.
 - **`stops.json`** = complete stop-id → name map, used to label arrival **destinations**.
 
+## Bus stops
+
+Buses use **MTA Bus Time** (the SIRI API), which needs a free key:
+
+1. Get a key at <https://bustime.mta.info/wiki/Developers/Index> and set `MTA_API_KEY`.
+2. Find your bus stop's **code** — the 6-digit number printed on the bus-stop pole, or look it
+   up at <https://bustime.mta.info>. Set `BUS_STOPS` to one or more codes, comma-separated.
+
+```bash
+MTA_API_KEY=your-key-here
+BUS_STOPS=401687,404923
+```
+
+Each bus stop renders as its own section: a single soonest-first list of `route → destination →
+minutes` (a bus-stop pole is one direction). When there's no live ETA the row shows the feed's
+status instead ("approaching", "N stops away", "at stop"). Bus service alerts come from the same
+feed and show under the stop, just like subway alerts. Bus route badges are rounded rectangles
+(with an SBS variant) to distinguish them from the round subway bullets.
+
 ## API
 
-`GET /api/board` returns the full board as JSON (the renderer-agnostic contract):
+`GET /api/board` returns the full board as JSON (the renderer-agnostic contract). Each entry in
+`stations` has a `type` of `"subway"` (uses `directions`, split N/S) or `"bus"` (uses a flat
+`arrivals` list); `arrivals[].minutes` is `null` when there's no ETA, with a `note` string
+(e.g. `"approaching"`) instead.
 
 ```jsonc
 {
@@ -156,6 +180,7 @@ A single Node process does all the work and the browser just renders small JSON:
 │  Arrivals poller  ── fetch station feed(s) every ~30s, decode protobuf,      │
 │                       filter to each station (split N/S), cache board model   │
 │  Alerts poller    ── fetch the alerts feed every ~120s, filter per station   │
+│  Bus poller       ── SIRI StopMonitoring per bus stop (~30s): arrivals+alerts │
 │  Weather service  ── fetch Open-Meteo every ~10 min                          │
 │  Express          ── GET /api/board (JSON contract) + GET /api/health        │
 │                      + serves the built React app                            │
