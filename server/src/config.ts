@@ -10,6 +10,12 @@ function num(env: Env, key: string, def: number): number {
   return n;
 }
 
+function bool(env: Env, key: string, def: boolean): boolean {
+  const raw = env[key];
+  if (raw === undefined || raw === '') return def;
+  return ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase());
+}
+
 export function loadConfig(env: Env = process.env): AppConfig {
   const stations = (env.STATION ?? '')
     .split(',')
@@ -35,5 +41,6 @@ export function loadConfig(env: Env = process.env): AppConfig {
     staleThresholdSec: num(env, 'STALE_THRESHOLD_SEC', 90),
     mtaApiKey: env.MTA_API_KEY ?? '',
     port: num(env, 'PORT', 8080),
+    compact: bool(env, 'COMPACT', false),
   };
 }

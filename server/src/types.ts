@@ -52,4 +52,5 @@ export interface AppConfig {
   staleThresholdSec: number;
   mtaApiKey: string;
   port: number;
+  compact: boolean;
 }

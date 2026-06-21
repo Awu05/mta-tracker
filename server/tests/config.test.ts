@@ -10,6 +10,13 @@ describe('loadConfig', () => {
     expect(cfg.feedRefreshSec).toBe(30);
     expect(cfg.alertsRefreshSec).toBe(120);
     expect(cfg.port).toBe(8080);
+    expect(cfg.compact).toBe(false);
+  });
+
+  it('parses COMPACT as a boolean flag', () => {
+    expect(loadConfig({ STATION: '127', COMPACT: '1' }).compact).toBe(true);
+    expect(loadConfig({ STATION: '127', COMPACT: 'true' }).compact).toBe(true);
+    expect(loadConfig({ STATION: '127', COMPACT: 'nope' }).compact).toBe(false);
   });
 
   it('parses a comma-separated STATION list, trimming whitespace', () => {

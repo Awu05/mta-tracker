@@ -1,7 +1,7 @@
 import express, { type Express } from 'express';
 import type { BoardCache } from './cache';
 
-interface ApiOptions { displayMode: string; }
+interface ApiOptions { displayMode: string; compact: boolean; }
 
 export function createApp(
   cache: BoardCache,
@@ -16,7 +16,7 @@ export function createApp(
 
   app.get('/api/board', (_req, res) => {
     const board = cache.get(Date.now());
-    res.json({ ...board, displayMode: options.displayMode });
+    res.json({ ...board, displayMode: options.displayMode, compact: options.compact });
   });
 
   if (staticDir) {

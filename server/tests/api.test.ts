@@ -5,7 +5,7 @@ import { BoardCache } from '../src/cache';
 
 describe('API', () => {
   const cache = new BoardCache([{ id: '127', name: 'Times Sq–42 St' }], 90);
-  const app = createApp(cache, { displayMode: 'kiosk' }, undefined);
+  const app = createApp(cache, { displayMode: 'kiosk', compact: false }, undefined);
 
   it('GET /api/health returns ok', async () => {
     const res = await request(app).get('/api/health');
@@ -19,6 +19,7 @@ describe('API', () => {
     expect(Array.isArray(res.body.stations)).toBe(true);
     expect(res.body.stations[0].station.id).toBe('127');
     expect(res.body.displayMode).toBe('kiosk');
+    expect(res.body.compact).toBe(false);
     expect('weather' in res.body).toBe(true);
   });
 });
