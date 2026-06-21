@@ -37,6 +37,14 @@ body {
   color: var(--muted);
 }
 
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+
+.view-toggle {
+  border: 1px solid var(--divider); border-radius: 6px; background: none;
+  color: var(--muted); cursor: pointer; padding: 4px 10px; font-size: 13px;
+}
+.view-toggle:hover { color: var(--text); border-color: var(--muted); }
+
 .station { font-size: 26px; font-weight: 700; letter-spacing: .3px; }
 
 .station-section {
@@ -90,7 +98,11 @@ body {
 }
 .alert-line { padding: 2px 0; }
 .alert-line b { color: #ffd866; }
-.alert-summary { color: var(--muted); margin-top: 4px; }
+.alert-summary {
+  background: none; border: none; padding: 4px 0 0; color: var(--muted);
+  cursor: pointer; font: inherit; text-align: left; display: block; margin-top: 4px;
+}
+.alert-summary:hover { color: var(--dim); }
 
 /* Kiosk mode: bigger type for a wall display */
 .mode-kiosk .station { font-size: 34px; }

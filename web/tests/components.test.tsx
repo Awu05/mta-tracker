@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { LineBullet } from '../src/components/LineBullet';
 import { DirectionColumn } from '../src/components/DirectionColumn';
 import { Alerts } from '../src/components/Alerts';
 import { StationSection } from '../src/components/StationSection';
+import { Header } from '../src/components/Header';
 import type { DirectionGroup } from '../src/types';
 
 describe('components', () => {
@@ -63,6 +64,42 @@ describe('components', () => {
     expect(screen.getByText(/Severe delays/)).toBeInTheDocument();
     expect(screen.queryByText(/1 skips 50 St/)).not.toBeInTheDocument();
     expect(screen.getByText(/1 info/)).toBeInTheDocument();
+  });
+
+  it('Alerts in compact mode expands to show info alerts and collapses again', () => {
+    render(
+      <Alerts
+        compact
+        alerts={[
+          { routes: ['2'], severity: 'delay', text: 'Severe delays' },
+          { routes: ['1'], severity: 'info', text: '1 skips 50 St' },
+        ]}
+      />
+    );
+    expect(screen.getByText(/Severe delays/)).toBeInTheDocument();
+    expect(screen.queryByText(/1 skips 50 St/)).not.toBeInTheDocument();
+    const summaryButton = screen.getByRole('button', { name: /info/ });
+    expect(summaryButton).toBeInTheDocument();
+
+    fireEvent.click(summaryButton);
+    expect(screen.getByText(/1 skips 50 St/)).toBeInTheDocument();
+
+    const collapseButton = screen.getByRole('button', { name: /show less/i });
+    fireEvent.click(collapseButton);
+    expect(screen.queryByText(/1 skips 50 St/)).not.toBeInTheDocument();
+  });
+
+  it('Header toggle button switches compact/full labels and fires the callback', () => {
+    const onToggleCompact = vi.fn();
+    const { rerender } = render(
+      <Header weather={null} stale={false} compact={false} onToggleCompact={onToggleCompact} />
+    );
+    const toggleButton = screen.getByRole('button', { name: /compact/i });
+    fireEvent.click(toggleButton);
+    expect(onToggleCompact).toHaveBeenCalledTimes(1);
+
+    rerender(<Header weather={null} stale={false} compact={true} onToggleCompact={onToggleCompact} />);
+    expect(screen.getByRole('button', { name: /full/i })).toBeInTheDocument();
   });
 
   it('StationSection renders the station name, direction, destination, and minutes', () => {

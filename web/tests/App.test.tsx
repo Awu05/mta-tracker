@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import App from '../src/App';
 
 const board = {
@@ -67,5 +67,31 @@ describe('App', () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
     expect(document.querySelector('.app.compact')).not.toBeInTheDocument();
+  });
+
+  it('toggle button flips effective compact state and persists to the URL', async () => {
+    const boardWithInfoAlert = {
+      ...board,
+      stations: [
+        {
+          ...board.stations[0],
+          alerts: [{ routes: ['1'], severity: 'info', text: '1 skips 50 St' }],
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => boardWithInfoAlert }));
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
+
+    // Starts in full view: info alert text visible, button offers to switch to compact.
+    expect(screen.getByText(/1 skips 50 St/)).toBeInTheDocument();
+    const toggleButton = screen.getByRole('button', { name: /compact/i });
+
+    fireEvent.click(toggleButton);
+
+    expect(screen.queryByText(/1 skips 50 St/)).not.toBeInTheDocument();
+    expect(document.querySelector('.app.compact')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /full/i })).toBeInTheDocument();
+    expect(window.location.search).toBe('?compact=1');
   });
 });

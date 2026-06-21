@@ -16,6 +16,7 @@ function compactOverride(): boolean | null {
 export default function App() {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [error, setError] = useState(false);
+  const [override, setOverride] = useState<boolean | null>(() => compactOverride());
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -37,11 +38,19 @@ export default function App() {
     return <div className="loading">{error ? 'Cannot reach server…' : 'Loading…'}</div>;
   }
   const display = error ? { ...board, stale: true } : board;
-  const override = compactOverride();
   const compact = override !== null ? override : board.compact;
+
+  function toggleCompact() {
+    const next = !compact;
+    setOverride(next);
+    const params = new URLSearchParams(window.location.search);
+    params.set('compact', next ? '1' : '0');
+    window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+  }
+
   return (
     <div className={`app mode-${board.displayMode}${compact ? ' compact' : ''}`}>
-      <Board board={display} compact={compact} />
+      <Board board={display} compact={compact} onToggleCompact={toggleCompact} />
     </div>
   );
 }
