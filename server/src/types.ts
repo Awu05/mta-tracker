@@ -21,10 +21,27 @@ export interface Alert {
   text: string;
 }
 
+export interface HourForecast {
+  time: string;       // Open-Meteo local ISO hour, e.g. "2026-06-21T15:00"
+  tempF: number;      // whole °F
+  icon: string;       // slug
+  precipPct: number;  // 0-100
+}
+
+export interface DayForecast {
+  date: string;       // local ISO date, e.g. "2026-06-21"
+  hiF: number;        // whole °F
+  loF: number;        // whole °F
+  icon: string;       // slug
+  precipPct: number;  // 0-100 (daily max)
+}
+
 export interface Weather {
   tempF: number;
   condition: string;
   icon: string;
+  hourly: HourForecast[]; // up to 12, soonest first
+  daily: DayForecast[];   // up to 5, soonest first
 }
 
 export interface StationBoard {
