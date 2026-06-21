@@ -19,7 +19,7 @@ React board is just one possible front end.
 - 🔎 **Add stations from the app** — an Edit mode lets you search a station by name and add it (no IDs), then pick from auto-suggested **nearby bus stops**. The list is saved on the server and shared by every display.
 - ⚠️ **Service alerts** per station, with severity (delay / suspended / info) inferred from the feed.
 - 🎨 **Official line bullets** (correct MTA colors) for quick scanning.
-- 🌤️ **Weather + clock** in a shared top bar.
+- 🌤️ **Weather + clock** in a shared top bar — a condition icon with the current temp; click it for a **click-to-expand forecast** (next 12 hours + next 5 days, with precip chance).
 - 🖥️ **Kiosk or phone** layouts via a single `DISPLAY_MODE` flag (responsive either way).
 - 🧱 **Resilient**: failed feed fetches keep the last-good data and show a "stale" indicator instead of blanking; per-feed isolation; fetch timeouts.
 - 🐳 **Dockerized**: multi-stage build, non-root runtime, healthcheck, `restart: unless-stopped`.
@@ -158,7 +158,11 @@ feed and show under the stop, just like subway alerts. Bus route badges are roun
   "updatedAt": "2026-06-21T14:02:11.000Z",
   "stale": false,
   "displayMode": "kiosk",
-  "weather": { "tempF": 79, "condition": "Overcast", "icon": "cloudy" },
+  "weather": {
+    "tempF": 79, "condition": "Overcast", "icon": "cloudy",
+    "hourly": [{ "time": "2026-06-21T15:00", "tempF": 79, "icon": "cloudy", "precipPct": 10 }],
+    "daily":  [{ "date": "2026-06-21", "hiF": 82, "loF": 68, "icon": "cloudy", "precipPct": 20 }]
+  },
   "stations": [
     {
       "station": { "id": "127", "name": "Times Sq-42 St" },
