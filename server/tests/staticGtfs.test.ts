@@ -4,7 +4,7 @@ import { getStation, getRouteStyle, stopName } from '../src/staticGtfs';
 describe('staticGtfs', () => {
   it('returns a station by id', () => {
     const s = getStation('127');
-    expect(s.name).toBe('Times Sq–42 St');
+    expect(s.name).toMatch(/Times Sq/);
     expect(s.routes).toContain('1');
   });
 

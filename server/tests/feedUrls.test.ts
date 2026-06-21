@@ -9,6 +9,12 @@ describe('feedUrls', () => {
     expect(feedIdForRoute('L')).toBe('l');
   });
 
+  it('maps express route variants to their base feed id', () => {
+    expect(feedIdForRoute('6X')).toBe('123456s');
+    expect(feedIdForRoute('7X')).toBe('123456s');
+    expect(feedIdForRoute('FX')).toBe('bdfm');
+  });
+
   it('builds a feed URL for a feed id', () => {
     expect(feedUrl('ace')).toContain('nyct%2Fgtfs-ace');
     expect(feedUrl('123456s')).toMatch(/nyct%2Fgtfs$/);

@@ -15,8 +15,9 @@ const FEED_PATHS: Record<string, string> = {
 const ROUTE_TO_FEED: Record<string, string> = {
   '1': '123456s', '2': '123456s', '3': '123456s', '4': '123456s',
   '5': '123456s', '6': '123456s', '7': '123456s', S: '123456s', GS: '123456s',
+  '6X': '123456s', '7X': '123456s',
   A: 'ace', C: 'ace', E: 'ace', H: 'ace', FS: 'ace',
-  B: 'bdfm', D: 'bdfm', F: 'bdfm', M: 'bdfm',
+  B: 'bdfm', D: 'bdfm', F: 'bdfm', M: 'bdfm', FX: 'bdfm',
   G: 'g',
   J: 'jz', Z: 'jz',
   N: 'nqrw', Q: 'nqrw', R: 'nqrw', W: 'nqrw',

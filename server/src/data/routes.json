@@ -22,5 +22,11 @@
   "R": { "color": "#fccc0a", "textColor": "#000000" },
   "W": { "color": "#fccc0a", "textColor": "#000000" },
   "S": { "color": "#808183", "textColor": "#ffffff" },
-  "SI": { "color": "#0039a6", "textColor": "#ffffff" }
+  "SI": { "color": "#0039a6", "textColor": "#ffffff" },
+  "6X": { "color": "#00933c", "textColor": "#ffffff" },
+  "7X": { "color": "#b933ad", "textColor": "#ffffff" },
+  "FX": { "color": "#ff6319", "textColor": "#ffffff" },
+  "GS": { "color": "#808183", "textColor": "#ffffff" },
+  "FS": { "color": "#808183", "textColor": "#ffffff" },
+  "H": { "color": "#808183", "textColor": "#ffffff" }
 }
