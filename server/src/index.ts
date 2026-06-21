@@ -2,25 +2,25 @@ import path from 'node:path';
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import { loadConfig } from './config';
 import { BoardCache } from './cache';
+import { BoardStore } from './boardStore';
 import { createApp } from './api';
 import { pollArrivals, pollAlerts, type DecodeFn } from './feeds/poller';
 import { pollBusStops } from './feeds/bus';
 import { getStation } from './staticGtfs';
 import { fetchWeather } from './weather';
+import type { BoardEntry } from './types';
 
 const config = loadConfig();
-const stations = config.stations.map((id) => {
-  const info = getStation(id);
-  return { id, name: info.name, routes: info.routes };
-});
 
-const subwayMetas = stations.map((s) => ({ id: s.id, name: s.name, type: 'subway' as const }));
-const busMetas = config.busStops.map((code) => ({ id: code, name: `Bus ${code}`, type: 'bus' as const }));
+const cache = new BoardCache([], config.staleThresholdSec);
 
-const cache = new BoardCache(
-  [...subwayMetas, ...busMetas],
-  config.staleThresholdSec,
-);
+const seed: BoardEntry[] = [
+  ...config.stations.map((id) => ({ id, type: 'subway' as const })),
+  ...config.busStops.map((id) => ({ id, type: 'bus' as const })),
+];
+
+const store = new BoardStore(cache, config.dataDir);
+store.init(seed);
 
 const decode: DecodeFn = (bytes) =>
   GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(bytes) as { entity?: unknown[] };
@@ -30,6 +30,10 @@ async function pollArrivalsCycle() {
   if (arrivalsInFlight) return;
   arrivalsInFlight = true;
   try {
+    const stations = store.subwayEntries().map((e) => {
+      const info = getStation(e.id);
+      return { id: e.id, name: info.name, routes: info.routes };
+    });
     await pollArrivals(cache, stations, decode);
   } catch (err) {
     console.error('[index] arrivals poll cycle error:', err);
@@ -43,6 +47,10 @@ async function pollAlertsCycle() {
   if (alertsInFlight) return;
   alertsInFlight = true;
   try {
+    const stations = store.subwayEntries().map((e) => {
+      const info = getStation(e.id);
+      return { id: e.id, name: info.name, routes: info.routes };
+    });
     await pollAlerts(cache, stations, decode);
   } catch (err) {
     console.error('[index] alerts poll cycle error:', err);
@@ -56,7 +64,8 @@ async function pollBusCycle() {
   if (busInFlight) return;
   busInFlight = true;
   try {
-    await pollBusStops(cache, config.busStops, config.mtaApiKey);
+    const codes = store.busEntries().map((e) => e.id);
+    await pollBusStops(cache, codes, config.mtaApiKey);
   } catch (err) {
     console.error('[index] bus poll cycle error:', err);
   } finally {
@@ -89,13 +98,16 @@ setInterval(pollArrivalsCycle, config.feedRefreshSec * 1000);
 setInterval(pollAlertsCycle, config.alertsRefreshSec * 1000);
 setInterval(pollWeatherCycle, config.weatherRefreshSec * 1000);
 
-if (config.busStops.length > 0) {
+if (config.mtaApiKey !== '') {
+  // Started whenever a key is present; pollBusStops no-ops on an empty code list,
+  // so bus stops added later (via the store) are picked up on the next tick.
   void pollBusCycle();
   setInterval(pollBusCycle, config.feedRefreshSec * 1000);
 }
 
 app.listen(config.port, () => {
-  const stationNames = stations.map((s) => s.name).join(', ');
-  const busSuffix = config.busStops.length > 0 ? `; ${config.busStops.length} bus stop${config.busStops.length === 1 ? '' : 's'}` : '';
-  console.log(`MTA tracker listening on :${config.port} (${stations.length} station${stations.length === 1 ? '' : 's'}: ${stationNames}${busSuffix})`);
+  const entries = store.entries();
+  console.log(
+    `MTA tracker listening on :${config.port} (loaded ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} from store: ${store.subwayEntries().length} subway, ${store.busEntries().length} bus; dataDir=${config.dataDir})`,
+  );
 });

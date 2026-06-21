@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { AppConfig } from './types';
 
 type Env = Record<string, string | undefined>;
@@ -53,5 +54,6 @@ export function loadConfig(env: Env = process.env): AppConfig {
     mtaApiKey,
     port: num(env, 'PORT', 8080),
     compact: bool(env, 'COMPACT', false),
+    dataDir: env.DATA_DIR && env.DATA_DIR.trim() !== '' ? env.DATA_DIR : path.resolve(process.cwd(), 'data'),
   };
 }

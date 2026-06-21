@@ -57,4 +57,7 @@ export interface AppConfig {
   mtaApiKey: string;
   port: number;
   compact: boolean;
+  dataDir: string;
 }
+
+export interface BoardEntry { id: string; type: 'subway' | 'bus'; }

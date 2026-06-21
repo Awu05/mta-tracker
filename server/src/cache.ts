@@ -12,7 +12,7 @@ interface StationEntry {
 }
 
 export class BoardCache {
-  private readonly entries: StationEntry[];
+  // Insertion-ordered map of station id -> entry; Map preserves insertion order in JS.
   private readonly byId: Map<string, StationEntry>;
   private weather: Weather | null = null;
 
@@ -20,21 +20,45 @@ export class BoardCache {
     stations: StationMeta[],
     private readonly staleThresholdSec: number,
   ) {
-    this.entries = stations.map((meta) => ({
-      meta,
-      name: meta.name,
-      directions: [],
-      arrivals: [],
-      alerts: [],
-      lastUpdatedMs: null,
-    }));
-    this.byId = new Map(this.entries.map((e) => [e.meta.id, e]));
+    this.byId = new Map(
+      stations.map((meta) => [
+        meta.id,
+        {
+          meta,
+          name: meta.name,
+          directions: [],
+          arrivals: [],
+          alerts: [],
+          lastUpdatedMs: null,
+        },
+      ]),
+    );
+  }
+
+  private get entries(): StationEntry[] {
+    return [...this.byId.values()];
   }
 
   private entry(stationId: string): StationEntry {
     const e = this.byId.get(stationId);
     if (!e) throw new Error(`Unknown station id: ${stationId}`);
     return e;
+  }
+
+  addStation(meta: StationMeta): void {
+    if (this.byId.has(meta.id)) return;
+    this.byId.set(meta.id, {
+      meta,
+      name: meta.name,
+      directions: [],
+      arrivals: [],
+      alerts: [],
+      lastUpdatedMs: null,
+    });
+  }
+
+  removeStation(id: string): void {
+    this.byId.delete(id);
   }
 
   setDirections(stationId: string, directions: DirectionGroup[], nowMs: number): void {

@@ -112,4 +112,60 @@ describe('BoardCache', () => {
     const c = new BoardCache(stations, 90);
     expect(() => c.setBusArrivals('999', [], 1_700_000_000_000)).toThrow(/999/);
   });
+
+  describe('addStation / removeStation', () => {
+    it('addStation registers a new, empty station that appears in get()', () => {
+      const c = new BoardCache([], 90);
+      const T0 = 1_700_000_000_000;
+      c.addStation({ id: '127', name: 'Times Sq-42 St', type: 'subway' });
+
+      let b = c.get(T0);
+      expect(b.stations).toHaveLength(1);
+      expect(b.stations[0].station).toEqual({ id: '127', name: 'Times Sq-42 St' });
+      expect(b.stations[0].type).toBe('subway');
+      expect(b.stations[0].directions).toEqual([]);
+      expect(b.stations[0].arrivals).toEqual([]);
+      expect(b.stations[0].alerts).toEqual([]);
+      expect(b.stations[0].stale).toBe(true);
+
+      c.setDirections('127', dirs, T0);
+      b = c.get(T0);
+      expect(b.stations[0].directions).toEqual(dirs);
+      expect(b.stations[0].stale).toBe(false);
+    });
+
+    it('addStation is idempotent: re-adding the same id leaves existing data untouched', () => {
+      const c = new BoardCache([], 90);
+      const T0 = 1_700_000_000_000;
+      c.addStation({ id: '127', name: 'Times Sq-42 St', type: 'subway' });
+      c.setDirections('127', dirs, T0);
+
+      c.addStation({ id: '127', name: 'Different Name', type: 'subway' });
+
+      const b = c.get(T0);
+      expect(b.stations).toHaveLength(1);
+      expect(b.stations[0].station.name).toBe('Times Sq-42 St');
+      expect(b.stations[0].directions).toEqual(dirs);
+    });
+
+    it('removeStation removes the entry so it no longer appears in get()', () => {
+      const c = new BoardCache([], 90);
+      c.addStation({ id: '127', name: 'Times Sq-42 St', type: 'subway' });
+      c.addStation({ id: '635', name: '14 St-Union Sq', type: 'subway' });
+
+      c.removeStation('127');
+
+      const b = c.get(1_700_000_000_000);
+      expect(b.stations).toHaveLength(1);
+      expect(b.stations[0].station.id).toBe('635');
+    });
+
+    it('removeStation on an unknown id is a no-op', () => {
+      const c = new BoardCache([], 90);
+      c.addStation({ id: '127', name: 'Times Sq-42 St', type: 'subway' });
+
+      expect(() => c.removeStation('999')).not.toThrow();
+      expect(c.get(1_700_000_000_000).stations).toHaveLength(1);
+    });
+  });
 });

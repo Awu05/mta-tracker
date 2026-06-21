@@ -7,3 +7,8 @@ services:
       - "8080:8080"
     env_file:
       - .env
+    volumes:
+      - mta-data:/app/data
+
+volumes:
+  mta-data:

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { loadConfig } from '../src/config';
 
@@ -54,5 +55,16 @@ describe('loadConfig', () => {
   it('throws when BUS_STOPS is set without MTA_API_KEY', () => {
     expect(() => loadConfig({ STATION: '127', BUS_STOPS: '400080' })).toThrow(/MTA_API_KEY/);
     expect(() => loadConfig({ STATION: '127', BUS_STOPS: '400080' })).toThrow(/BUS_STOPS/);
+  });
+
+  it('defaults dataDir to <cwd>/data when DATA_DIR is unset', () => {
+    const cfg = loadConfig({ STATION: '127' });
+    expect(cfg.dataDir).toBe(path.resolve(process.cwd(), 'data'));
+    expect(cfg.dataDir.endsWith('data')).toBe(true);
+  });
+
+  it('uses DATA_DIR when set', () => {
+    const cfg = loadConfig({ STATION: '127', DATA_DIR: '/tmp/x' });
+    expect(cfg.dataDir).toBe('/tmp/x');
   });
 });
