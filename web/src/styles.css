@@ -86,9 +86,12 @@ body {
   font-weight: 700; font-size: 18px; flex: 0 0 auto;
 }
 
+.bullet.bus { border-radius: 7px; width: auto; min-width: 34px; padding: 0 9px; }
+
 .dest { flex: 1; font-size: 18px; color: #e8eaed; }
 .mins { font-weight: 700; font-size: 22px; }
 .mins small { font-size: 13px; font-weight: 400; color: var(--muted); }
+.note { font-weight: 600; font-size: 14px; color: var(--dim); text-align: right; }
 
 .empty { color: var(--muted); font-size: 15px; padding: 10px 0; }
 
@@ -123,6 +126,7 @@ body {
 .compact .dest { font-size: 15px; }
 .compact .mins { font-size: 16px; }
 .compact .bullet { width: 26px; height: 26px; font-size: 14px; }
+.compact .bullet.bus { min-width: 26px; padding: 0 7px; }
 .compact .station { font-size: 20px; }
 .compact .station-section { margin-top: 14px; padding-top: 10px; }
 .compact .alerts { font-size: 12.5px; padding: 8px 10px; margin-top: 12px; }

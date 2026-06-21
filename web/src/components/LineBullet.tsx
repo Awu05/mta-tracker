@@ -1,8 +1,8 @@
-interface Props { route: string; color: string; textColor: string; }
+interface Props { route: string; color: string; textColor: string; bus?: boolean; }
 
-export function LineBullet({ route, color, textColor }: Props) {
+export function LineBullet({ route, color, textColor, bus }: Props) {
   return (
-    <span className="bullet" style={{ backgroundColor: color, color: textColor }}>
+    <span className={`bullet${bus ? ' bus' : ''}`} style={{ backgroundColor: color, color: textColor }}>
       {route}
     </span>
   );

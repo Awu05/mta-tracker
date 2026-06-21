@@ -5,7 +5,8 @@ export interface Arrival {
   color: string;
   textColor: string;
   destination: string;
-  minutes: number;
+  minutes: number | null;
+  note?: string;
 }
 
 export interface DirectionGroup {
@@ -28,9 +29,11 @@ export interface Weather {
 
 export interface StationBoard {
   station: { id: string; name: string };
+  type: 'subway' | 'bus';
   updatedAt: string;
   stale: boolean;
   directions: DirectionGroup[];
+  arrivals: Arrival[];
   alerts: Alert[];
 }
 
