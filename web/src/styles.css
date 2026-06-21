@@ -194,3 +194,40 @@ body {
 .compact .alerts { font-size: 12.5px; padding: 8px 10px; margin-top: 12px; }
 .compact .alert-summary { margin-top: 6px; padding-top: 4px; border-top: 1px solid #5c4408; }
 
+/* Weather + forecast */
+.weather { position: relative; }
+.weather-current {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; padding: 0; margin: 0;
+  color: var(--dim); font: inherit; font-size: 15px; cursor: pointer;
+}
+.weather-current:disabled { cursor: default; }
+.weather-temp { color: var(--text); font-weight: 600; }
+.weather-caret { font-size: 11px; color: var(--muted); }
+.wx-icon { display: block; }
+
+.forecast {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 30;
+  background: var(--panel); border: 1px solid var(--divider); border-radius: 10px;
+  padding: 12px; text-align: center; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  max-width: min(92vw, 460px);
+}
+.forecast-hourly { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.fc-hour {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 40px; font-size: 12px; color: var(--dim);
+}
+.fc-temp { color: var(--text); font-weight: 600; }
+.forecast-daily {
+  display: flex; flex-direction: column; gap: 8px; margin-top: 10px;
+  border-top: 1px solid var(--divider); padding-top: 10px;
+}
+.fc-day {
+  display: grid; grid-template-columns: 42px 22px 1fr auto;
+  align-items: center; gap: 12px; font-size: 13px; text-align: left;
+}
+.fc-label { color: var(--dim); }
+.fc-hi { color: var(--text); font-weight: 600; }
+.fc-lo { color: var(--muted); }
+.fc-precip { color: #5bb8ff; font-size: 11px; min-height: 13px; }
+

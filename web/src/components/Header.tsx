@@ -1,5 +1,6 @@
 import type { Weather } from '../types';
 import { Clock } from './Clock';
+import { Weather as WeatherWidget } from './Weather';
 
 interface Props {
   weather: Weather | null;
@@ -39,7 +40,7 @@ export function Header({ weather, stale, compact, onToggleCompact, editMode, onT
       </div>
       <div className="meta">
         <Clock />
-        {weather && <div className="weather">{weather.tempF}°F · {weather.condition}</div>}
+        {weather && <WeatherWidget weather={weather} />}
       </div>
     </div>
   );
