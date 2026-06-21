@@ -73,6 +73,19 @@ describe('buildHourly', () => {
   it('returns [] when no hourly block is present', () => {
     expect(buildHourly(CURRENT_ONLY as never)).toEqual([]);
   });
+
+  it('returns [] when every hourly entry is in the past relative to current.time', () => {
+    const ALL_STALE = {
+      current: { time: '2026-06-21T15:00', temperature_2m: 71.6, weather_code: 0 },
+      hourly: {
+        time: ['2026-06-21T13:00', '2026-06-21T14:00'],
+        temperature_2m: [60, 61],
+        weather_code: [3, 3],
+        precipitation_probability: [0, 0],
+      },
+    };
+    expect(buildHourly(ALL_STALE as never)).toEqual([]);
+  });
 });
 
 describe('buildDaily', () => {

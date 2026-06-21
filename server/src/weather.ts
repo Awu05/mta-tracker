@@ -49,7 +49,7 @@ export function buildHourly(om: OMResponse): HourForecast[] {
       time: h.time[i],
       tempF: Math.round(h.temperature_2m[i]),
       icon: codeToParts(h.weather_code[i]).icon,
-      precipPct: Math.round(h.precipitation_probability[i] ?? 0),
+      precipPct: Math.round(h.precipitation_probability?.[i] ?? 0),
     });
   }
   return out;
@@ -66,7 +66,7 @@ export function buildDaily(om: OMResponse): DayForecast[] {
       hiF: Math.round(d.temperature_2m_max[i]),
       loF: Math.round(d.temperature_2m_min[i]),
       icon: codeToParts(d.weather_code[i]).icon,
-      precipPct: Math.round(d.precipitation_probability_max[i] ?? 0),
+      precipPct: Math.round(d.precipitation_probability_max?.[i] ?? 0),
     });
   }
   return out;
