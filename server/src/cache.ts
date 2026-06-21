@@ -1,10 +1,12 @@
-import type { Alert, BoardModel, DirectionGroup, StationBoard, Weather } from './types';
+import type { Alert, Arrival, BoardModel, DirectionGroup, StationBoard, Weather } from './types';
 
-export interface StationMeta { id: string; name: string; }
+export interface StationMeta { id: string; name: string; type?: 'subway' | 'bus'; }
 
 interface StationEntry {
   meta: StationMeta;
+  name: string;
   directions: DirectionGroup[];
+  arrivals: Arrival[];
   alerts: Alert[];
   lastUpdatedMs: number | null;
 }
@@ -20,7 +22,9 @@ export class BoardCache {
   ) {
     this.entries = stations.map((meta) => ({
       meta,
+      name: meta.name,
       directions: [],
+      arrivals: [],
       alerts: [],
       lastUpdatedMs: null,
     }));
@@ -44,6 +48,13 @@ export class BoardCache {
     e.alerts = alerts;
   }
 
+  setBusArrivals(stationId: string, arrivals: Arrival[], nowMs: number, name?: string): void {
+    const e = this.entry(stationId);
+    e.arrivals = arrivals;
+    e.lastUpdatedMs = nowMs;
+    if (name) e.name = name;
+  }
+
   setWeather(weather: Weather): void {
     this.weather = weather;
   }
@@ -58,10 +69,12 @@ export class BoardCache {
         maxLastUpdated = e.lastUpdatedMs;
       }
       return {
-        station: e.meta,
+        station: { id: e.meta.id, name: e.name },
+        type: e.meta.type ?? 'subway',
         updatedAt: new Date(e.lastUpdatedMs ?? 0).toISOString(),
         stale,
         directions: e.directions,
+        arrivals: e.arrivals,
         alerts: e.alerts,
       };
     });

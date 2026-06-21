@@ -70,4 +70,46 @@ describe('BoardCache', () => {
     expect(() => c.setDirections('999', dirs, 1_700_000_000_000)).toThrow(/999/);
     expect(() => c.setAlerts('999', [])).toThrow(/999/);
   });
+
+  it('defaults type to subway when meta omits it', () => {
+    const c = new BoardCache(stations, 90);
+    const b = c.get(1_700_000_000_000);
+    expect(b.stations[0].type).toBe('subway');
+    expect(b.stations[0].arrivals).toEqual([]);
+  });
+
+  it('supports bus stations via setBusArrivals: type, arrivals, name update, freshness', () => {
+    const busStations = [
+      ...stations,
+      { id: '400080', name: 'Bus 400080', type: 'bus' as const },
+    ];
+    const c = new BoardCache(busStations, 90);
+    const T0 = 1_700_000_000_000;
+    const busArrival = {
+      route: 'M15',
+      color: '#1E5BA8',
+      textColor: '#ffffff',
+      destination: 'EAST HARLEM 125 ST',
+      minutes: 7,
+    };
+
+    c.setBusArrivals('400080', [busArrival], T0, 'Main St/1 Av');
+
+    const b = c.get(T0);
+    const busBoard = b.stations.find((s) => s.station.id === '400080')!;
+    expect(busBoard.type).toBe('bus');
+    expect(busBoard.arrivals).toEqual([busArrival]);
+    expect(busBoard.station.name).toBe('Main St/1 Av');
+    expect(busBoard.stale).toBe(false);
+    expect(busBoard.directions).toEqual([]);
+
+    // subway station in the same cache is unaffected and still reports subway.
+    const subwayBoard = b.stations.find((s) => s.station.id === '127')!;
+    expect(subwayBoard.type).toBe('subway');
+  });
+
+  it('throws when setBusArrivals targets an unknown station id', () => {
+    const c = new BoardCache(stations, 90);
+    expect(() => c.setBusArrivals('999', [], 1_700_000_000_000)).toThrow(/999/);
+  });
 });

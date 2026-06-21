@@ -37,4 +37,22 @@ describe('loadConfig', () => {
   it('throws on invalid displayMode', () => {
     expect(() => loadConfig({ STATION: '127', DISPLAY_MODE: 'bogus' })).toThrow(/DISPLAY_MODE/);
   });
+
+  it('defaults busStops to an empty array', () => {
+    expect(loadConfig({ STATION: '127' }).busStops).toEqual([]);
+  });
+
+  it('parses a comma-separated BUS_STOPS list, trimming whitespace', () => {
+    const cfg = loadConfig({
+      STATION: '127',
+      BUS_STOPS: '400080, 404947',
+      MTA_API_KEY: 'x'.repeat(36),
+    });
+    expect(cfg.busStops).toEqual(['400080', '404947']);
+  });
+
+  it('throws when BUS_STOPS is set without MTA_API_KEY', () => {
+    expect(() => loadConfig({ STATION: '127', BUS_STOPS: '400080' })).toThrow(/MTA_API_KEY/);
+    expect(() => loadConfig({ STATION: '127', BUS_STOPS: '400080' })).toThrow(/BUS_STOPS/);
+  });
 });

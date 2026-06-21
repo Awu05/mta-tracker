@@ -18,6 +18,8 @@ describe('API', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.stations)).toBe(true);
     expect(res.body.stations[0].station.id).toBe('127');
+    expect(res.body.stations[0].type).toBe('subway');
+    expect(Array.isArray(res.body.stations[0].arrivals)).toBe(true);
     expect(res.body.displayMode).toBe('kiosk');
     expect(res.body.compact).toBe(false);
     expect('weather' in res.body).toBe(true);

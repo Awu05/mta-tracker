@@ -5,7 +5,8 @@ export interface Arrival {
   color: string;        // hex, e.g. "#ee352e"
   textColor: string;    // hex for text on the bullet
   destination: string;  // human station name of trip's last stop
-  minutes: number;      // whole minutes until arrival (>= 0)
+  minutes: number | null; // whole minutes until arrival (>= 0); null when no ETA is available
+  note?: string;         // e.g. "approaching" / "3 stops away" when minutes is null
 }
 
 export interface DirectionGroup {
@@ -28,9 +29,11 @@ export interface Weather {
 
 export interface StationBoard {
   station: { id: string; name: string };
+  type: 'subway' | 'bus';
   updatedAt: string;    // ISO timestamp of last successful feed update for this station
   stale: boolean;
-  directions: DirectionGroup[];
+  directions: DirectionGroup[]; // subway: populated; bus: []
+  arrivals: Arrival[];          // bus: flat, soonest first; subway: []
   alerts: Alert[];
 }
 
@@ -43,6 +46,7 @@ export interface BoardModel {
 
 export interface AppConfig {
   stations: string[];
+  busStops: string[];
   displayMode: 'kiosk' | 'phone' | 'auto';
   weatherLat: number;
   weatherLon: number;

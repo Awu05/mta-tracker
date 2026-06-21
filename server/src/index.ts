@@ -4,6 +4,7 @@ import { loadConfig } from './config';
 import { BoardCache } from './cache';
 import { createApp } from './api';
 import { pollArrivals, pollAlerts, type DecodeFn } from './feeds/poller';
+import { pollBusStops } from './feeds/bus';
 import { getStation } from './staticGtfs';
 import { fetchWeather } from './weather';
 
@@ -13,8 +14,11 @@ const stations = config.stations.map((id) => {
   return { id, name: info.name, routes: info.routes };
 });
 
+const subwayMetas = stations.map((s) => ({ id: s.id, name: s.name, type: 'subway' as const }));
+const busMetas = config.busStops.map((code) => ({ id: code, name: `Bus ${code}`, type: 'bus' as const }));
+
 const cache = new BoardCache(
-  stations.map((s) => ({ id: s.id, name: s.name })),
+  [...subwayMetas, ...busMetas],
   config.staleThresholdSec,
 );
 
@@ -47,6 +51,19 @@ async function pollAlertsCycle() {
   }
 }
 
+let busInFlight = false;
+async function pollBusCycle() {
+  if (busInFlight) return;
+  busInFlight = true;
+  try {
+    await pollBusStops(cache, config.busStops, config.mtaApiKey);
+  } catch (err) {
+    console.error('[index] bus poll cycle error:', err);
+  } finally {
+    busInFlight = false;
+  }
+}
+
 let weatherInFlight = false;
 async function pollWeatherCycle() {
   if (weatherInFlight) return;
@@ -72,7 +89,13 @@ setInterval(pollArrivalsCycle, config.feedRefreshSec * 1000);
 setInterval(pollAlertsCycle, config.alertsRefreshSec * 1000);
 setInterval(pollWeatherCycle, config.weatherRefreshSec * 1000);
 
+if (config.busStops.length > 0) {
+  void pollBusCycle();
+  setInterval(pollBusCycle, config.feedRefreshSec * 1000);
+}
+
 app.listen(config.port, () => {
   const stationNames = stations.map((s) => s.name).join(', ');
-  console.log(`MTA tracker listening on :${config.port} (${stations.length} station${stations.length === 1 ? '' : 's'}: ${stationNames})`);
+  const busSuffix = config.busStops.length > 0 ? `; ${config.busStops.length} bus stop${config.busStops.length === 1 ? '' : 's'}` : '';
+  console.log(`MTA tracker listening on :${config.port} (${stations.length} station${stations.length === 1 ? '' : 's'}: ${stationNames}${busSuffix})`);
 });

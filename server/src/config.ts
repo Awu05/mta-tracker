@@ -25,6 +25,16 @@ export function loadConfig(env: Env = process.env): AppConfig {
     throw new Error('Missing required env STATION (comma-separated list of station stop ids)');
   }
 
+  const busStops = (env.BUS_STOPS ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const mtaApiKey = env.MTA_API_KEY ?? '';
+  if (busStops.length > 0 && mtaApiKey === '') {
+    throw new Error('BUS_STOPS is set but MTA_API_KEY is missing (bus tracking requires MTA_API_KEY)');
+  }
+
   const displayMode = (env.DISPLAY_MODE ?? 'auto') as AppConfig['displayMode'];
   if (!['kiosk', 'phone', 'auto'].includes(displayMode)) {
     throw new Error(`Invalid DISPLAY_MODE: ${displayMode} (expected kiosk|phone|auto)`);
@@ -32,6 +42,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
 
   return {
     stations,
+    busStops,
     displayMode,
     weatherLat: num(env, 'WEATHER_LAT', 40.7128),
     weatherLon: num(env, 'WEATHER_LON', -74.006),
@@ -39,7 +50,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     alertsRefreshSec: num(env, 'ALERTS_REFRESH_SEC', 120),
     weatherRefreshSec: num(env, 'WEATHER_REFRESH_SEC', 600),
     staleThresholdSec: num(env, 'STALE_THRESHOLD_SEC', 90),
-    mtaApiKey: env.MTA_API_KEY ?? '',
+    mtaApiKey,
     port: num(env, 'PORT', 8080),
     compact: bool(env, 'COMPACT', false),
   };

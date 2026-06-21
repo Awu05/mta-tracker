@@ -57,7 +57,10 @@ export function transformArrivals(
     }
   }
 
-  (['N', 'S'] as Direction[]).forEach((d) => byDir[d].sort((a, b) => a.minutes - b.minutes));
+  // Subway arrivals always have a numeric `minutes` (set above); `note`/null is bus-only.
+  (['N', 'S'] as Direction[]).forEach((d) =>
+    byDir[d].sort((a, b) => (a.minutes as number) - (b.minutes as number)),
+  );
 
   return (['N', 'S'] as Direction[]).map((d) => ({ direction: d, label: LABEL[d], arrivals: byDir[d] }));
 }

@@ -29,7 +29,7 @@ function severityFromEffect(effect?: string | number | null): string | null {
 // extension, which gtfs-realtime-bindings does not decode. The headerText is
 // reliable, so we infer severity from it and only fall back to the numeric
 // enum mapping above when the text gives us nothing.
-function severityFromText(text: string): string | null {
+export function severityFromText(text: string): string | null {
   const t = text.toLowerCase();
   if (
     t.includes('no service') ||
