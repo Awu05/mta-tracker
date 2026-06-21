@@ -21,10 +21,27 @@ export interface Alert {
   text: string;
 }
 
+export interface HourForecast {
+  time: string;
+  tempF: number;
+  icon: string;
+  precipPct: number;
+}
+
+export interface DayForecast {
+  date: string;
+  hiF: number;
+  loF: number;
+  icon: string;
+  precipPct: number;
+}
+
 export interface Weather {
   tempF: number;
   condition: string;
   icon: string;
+  hourly: HourForecast[];
+  daily: DayForecast[];
 }
 
 export interface StationBoard {
