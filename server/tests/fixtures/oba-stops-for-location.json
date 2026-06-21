@@ -1,0 +1,143 @@
+{
+  "code": 200,
+  "currentTime": 1782061399441,
+  "data": {
+    "limitExceeded": false,
+    "outOfRange": false,
+    "list": [
+      {
+        "code": "400936",
+        "direction": "NE",
+        "id": "MTA_400936",
+        "lat": 40.755109,
+        "locationType": 0,
+        "lon": -73.983786,
+        "name": "6 AV/W 42 ST",
+        "routeIds": [
+          "MTA NYCT_M5",
+          "MTA NYCT_M7",
+          "MTA NYCT_M55"
+        ],
+        "wheelchairBoarding": "UNKNOWN"
+      },
+      {
+        "code": "401232",
+        "direction": "NE",
+        "id": "MTA_401232",
+        "lat": 40.75396,
+        "locationType": 0,
+        "lon": -73.992034,
+        "name": "8 AV/W 37 ST",
+        "routeIds": [
+          "MTA NYCT_M20",
+          "MTA NYCT_M34A+"
+        ],
+        "wheelchairBoarding": "UNKNOWN"
+      },
+      {
+        "code": "401359",
+        "direction": "SW",
+        "id": "MTA_401359",
+        "lat": 40.752568,
+        "locationType": 0,
+        "lon": -73.989494,
+        "name": "7 AV/W 37 ST",
+        "routeIds": [
+          "MTA NYCT_M7",
+          "MTA NYCT_M20",
+          "MTABC_Q32"
+        ],
+        "wheelchairBoarding": "UNKNOWN"
+      },
+      {
+        "code": "401850",
+        "direction": "NE",
+        "id": "MTA_401850",
+        "lat": 40.756261,
+        "locationType": 0,
+        "lon": -73.990408,
+        "name": "8 AV/W 40 ST",
+        "routeIds": [
+          "MTA NYCT_M34A+"
+        ],
+        "wheelchairBoarding": "UNKNOWN"
+      }
+    ],
+    "references": {
+      "agencies": [],
+      "routes": [
+        {
+          "agencyId": "MTA NYCT",
+          "color": "EE352E",
+          "description": "via 5th Av / Av of Americas / Riverside Dr",
+          "id": "MTA NYCT_M5",
+          "longName": "George Washington Bridge - 31 St & 6 Av",
+          "shortName": "M5",
+          "textColor": "FFFFFF",
+          "type": 3,
+          "url": ""
+        },
+        {
+          "agencyId": "MTA NYCT",
+          "color": "00AEEF",
+          "description": "via Columbus / Amsterdam / 6 & 7 Av / Bway",
+          "id": "MTA NYCT_M7",
+          "longName": "Harlem - 14th Street",
+          "shortName": "M7",
+          "textColor": "FFFFFF",
+          "type": 3,
+          "url": ""
+        },
+        {
+          "agencyId": "MTA NYCT",
+          "color": "6CBE45",
+          "description": "via 5 Av & 6 Av",
+          "id": "MTA NYCT_M55",
+          "longName": "W 44 St  - South Ferry",
+          "shortName": "M55",
+          "textColor": "FFFFFF",
+          "type": 3,
+          "url": ""
+        },
+        {
+          "agencyId": "MTA NYCT",
+          "color": "EE352E",
+          "description": "via 7th Av / 8th Av / Battery Park City",
+          "id": "MTA NYCT_M20",
+          "longName": "Lincoln Center - South Ferry",
+          "shortName": "M20",
+          "textColor": "FFFFFF",
+          "type": 3,
+          "url": ""
+        },
+        {
+          "agencyId": "MTA NYCT",
+          "color": "006CB7",
+          "description": "Select Bus Service via 34th St Crosstown",
+          "id": "MTA NYCT_M34A+",
+          "longName": "Waterside - Port Authority Terminal",
+          "shortName": "M34A-SBS",
+          "textColor": "FFFFFF",
+          "type": 3,
+          "url": ""
+        },
+        {
+          "agencyId": "MTABC",
+          "color": "FAA61A",
+          "description": "Via Roosevelt Av / Queens Blvd / 5 Av / Madison Av",
+          "id": "MTABC_Q32",
+          "longName": "Jackson Heights - Penn Station (Midtown)",
+          "shortName": "Q32",
+          "textColor": "FFFFFF",
+          "type": 3,
+          "url": "https://new.mta.info/schedules/bus"
+        }
+      ],
+      "situations": [],
+      "stops": [],
+      "trips": []
+    }
+  },
+  "text": "OK",
+  "version": 2
+}

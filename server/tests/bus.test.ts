@@ -1,10 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { busStopUrl, transformBusStop } from '../src/feeds/bus';
+import { busStopUrl, transformBusStop, nearbyBusStopsUrl, transformNearbyStops } from '../src/feeds/bus';
 
 const fixture = JSON.parse(
   readFileSync(path.join(__dirname, 'fixtures/siri-stop-monitoring.json'), 'utf-8'),
+);
+
+const obaFixture = JSON.parse(
+  readFileSync(path.join(__dirname, 'fixtures/oba-stops-for-location.json'), 'utf-8'),
 );
 
 describe('busStopUrl', () => {
@@ -85,5 +89,60 @@ describe('transformBusStop', () => {
     expect(result.name).toBeNull();
     expect(result.arrivals).toEqual([]);
     expect(result.alerts).toEqual([]);
+  });
+});
+
+describe('nearbyBusStopsUrl', () => {
+  it('builds an OBA stops-for-location URL with lat, lon, radius, and key', () => {
+    const url = nearbyBusStopsUrl(40.75529, -73.987495, 'TESTKEY123');
+    expect(url).toContain('lat=40.75529');
+    expect(url).toContain('lon=-73.987495');
+    expect(url).toContain('radius=400');
+    expect(url).toContain('key=TESTKEY123');
+    expect(url).toContain('version=2');
+  });
+
+  it('honors a custom radius', () => {
+    const url = nearbyBusStopsUrl(40.75529, -73.987495, 'TESTKEY123', 800);
+    expect(url).toContain('radius=800');
+  });
+});
+
+describe('transformNearbyStops', () => {
+  // Times Sq coords used to fetch the fixture
+  const FROM_LAT = 40.75529;
+  const FROM_LON = -73.987495;
+
+  it('returns stops sorted ascending by distanceMeters', () => {
+    const stops = transformNearbyStops(obaFixture, FROM_LAT, FROM_LON);
+    expect(stops.length).toBeGreaterThan(0);
+    for (const s of stops) {
+      expect(typeof s.distanceMeters).toBe('number');
+      expect(Number.isFinite(s.distanceMeters)).toBe(true);
+    }
+    const distances = stops.map((s) => s.distanceMeters);
+    const sorted = [...distances].sort((a, b) => a - b);
+    expect(distances).toEqual(sorted);
+  });
+
+  it('derives code from the numeric part of the stop id after the last underscore', () => {
+    const stops = transformNearbyStops(obaFixture, FROM_LAT, FROM_LON);
+    const codes = stops.map((s) => s.code);
+    expect(codes).toContain('400936');
+    expect(codes).toContain('401232');
+  });
+
+  it('resolves routeIds to non-empty deduped short names', () => {
+    const stops = transformNearbyStops(obaFixture, FROM_LAT, FROM_LON);
+    const stop = stops.find((s) => s.code === '400936');
+    expect(stop).toBeDefined();
+    expect(stop!.routes).toEqual(expect.arrayContaining(['M5', 'M7', 'M55']));
+    expect(stop!.routes.length).toBe(new Set(stop!.routes).size);
+  });
+
+  it('returns an empty array for a malformed/empty response', () => {
+    expect(transformNearbyStops({}, FROM_LAT, FROM_LON)).toEqual([]);
+    expect(transformNearbyStops(null, FROM_LAT, FROM_LON)).toEqual([]);
+    expect(transformNearbyStops(undefined, FROM_LAT, FROM_LON)).toEqual([]);
   });
 });

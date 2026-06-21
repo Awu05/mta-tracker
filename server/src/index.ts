@@ -89,7 +89,24 @@ async function pollWeatherCycle() {
 // Static dir: built web app copied next to dist in the Docker image.
 const staticDir = path.resolve(__dirname, '../public');
 
-const app = createApp(cache, { displayMode: config.displayMode, compact: config.compact }, staticDir);
+function onBoardChange(entry?: BoardEntry) {
+  if (entry?.type === 'bus') {
+    void pollBusCycle();
+  } else {
+    void pollArrivalsCycle();
+    void pollAlertsCycle();
+  }
+}
+
+const app = createApp({
+  cache,
+  store,
+  displayMode: config.displayMode,
+  compact: config.compact,
+  mtaApiKey: config.mtaApiKey,
+  onBoardChange,
+  staticDir,
+});
 
 void pollArrivalsCycle();
 void pollAlertsCycle();

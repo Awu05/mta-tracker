@@ -11,6 +11,108 @@ export function busStopUrl(stopCode: string, key: string): string {
   return `https://bustime.mta.info/api/siri/stop-monitoring.json?key=${key}&version=2&MonitoringRef=${stopCode}`;
 }
 
+export interface NearbyStop {
+  code: string;
+  name: string;
+  routes: string[];
+  distanceMeters: number;
+}
+
+export function nearbyBusStopsUrl(lat: number, lon: number, key: string, radius = 400): string {
+  return `https://bustime.mta.info/api/where/stops-for-location.json?key=${key}&lat=${lat}&lon=${lon}&radius=${radius}&version=2`;
+}
+
+/** Great-circle distance between two lat/lon points, in meters. */
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const EARTH_RADIUS_M = 6_371_000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return EARTH_RADIUS_M * c;
+}
+
+interface ObaStop {
+  id?: string;
+  code?: string;
+  name?: string;
+  lat?: number;
+  lon?: number;
+  routeIds?: string[];
+}
+
+interface ObaRoute {
+  id?: string;
+  shortName?: string;
+}
+
+export function transformNearbyStops(oba: unknown, fromLat: number, fromLon: number): NearbyStop[] {
+  const root = (oba ?? {}) as {
+    data?: {
+      list?: ObaStop[];
+      references?: { routes?: ObaRoute[] };
+    };
+  };
+
+  const list = Array.isArray(root.data?.list) ? (root.data!.list as ObaStop[]) : [];
+  const routeRefs = Array.isArray(root.data?.references?.routes)
+    ? (root.data!.references!.routes as ObaRoute[])
+    : [];
+
+  const routeShortNameById = new Map<string, string>();
+  for (const r of routeRefs) {
+    if (r.id && r.shortName) routeShortNameById.set(r.id, r.shortName);
+  }
+
+  const stops: NearbyStop[] = [];
+  for (const s of list) {
+    const lat = s.lat;
+    const lon = s.lon;
+    if (typeof lat !== 'number' || typeof lon !== 'number') continue;
+
+    const rawId = s.id ?? s.code ?? '';
+    const idx = rawId.lastIndexOf('_');
+    const code = (idx >= 0 ? rawId.slice(idx + 1) : rawId) || (s.code ?? '');
+    if (!code) continue;
+
+    const routeIds = Array.isArray(s.routeIds) ? s.routeIds : [];
+    const routes = [...new Set(routeIds.map((id) => routeShortNameById.get(id)).filter((r): r is string => !!r))];
+
+    stops.push({
+      code,
+      name: s.name ?? '',
+      routes,
+      distanceMeters: haversineMeters(fromLat, fromLon, lat, lon),
+    });
+  }
+
+  stops.sort((a, b) => a.distanceMeters - b.distanceMeters);
+  return stops;
+}
+
+export async function fetchNearbyBusStops(
+  lat: number,
+  lon: number,
+  key: string,
+  fetchFn: typeof fetch = fetch,
+  radius = 400,
+): Promise<NearbyStop[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const url = nearbyBusStopsUrl(lat, lon, key, radius);
+    const res = await fetchFn(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`Nearby bus stops lookup returned ${res.status}`);
+    const json = await res.json();
+    return transformNearbyStops(json, lat, lon);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * MTA SIRI JSON frequently wraps string fields in single-element arrays
  * (and occasionally arrays of {value}/{Value} objects). Defensively unwrap.
