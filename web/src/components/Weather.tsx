@@ -12,9 +12,7 @@ function dayLabel(iso: string): string {
 
 export function Weather({ weather }: { weather: WeatherModel }) {
   const [open, setOpen] = useState(false);
-  const hourly = weather.hourly ?? [];
-  const daily = weather.daily ?? [];
-  const hasForecast = hourly.length > 0 || daily.length > 0;
+  const hasForecast = weather.hourly.length > 0 || weather.daily.length > 0;
 
   return (
     <div className="weather">
@@ -35,9 +33,9 @@ export function Weather({ weather }: { weather: WeatherModel }) {
 
       {open && hasForecast && (
         <div className="forecast" data-testid="forecast">
-          {hourly.length > 0 && (
+          {weather.hourly.length > 0 && (
             <div className="forecast-hourly">
-              {hourly.map((h) => (
+              {weather.hourly.map((h) => (
                 <div className="fc-hour" data-testid="fc-hour" key={h.time}>
                   <div className="fc-label">{hourLabel(h.time)}</div>
                   <WeatherIcon icon={h.icon} size={18} />
@@ -47,9 +45,9 @@ export function Weather({ weather }: { weather: WeatherModel }) {
               ))}
             </div>
           )}
-          {daily.length > 0 && (
+          {weather.daily.length > 0 && (
             <div className="forecast-daily">
-              {daily.map((d) => (
+              {weather.daily.map((d) => (
                 <div className="fc-day" data-testid="fc-day" key={d.date}>
                   <div className="fc-label">{dayLabel(d.date)}</div>
                   <WeatherIcon icon={d.icon} size={18} />

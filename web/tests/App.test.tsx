@@ -4,7 +4,7 @@ import App from '../src/App';
 
 const board = {
   updatedAt: '', stale: false, displayMode: 'kiosk', compact: false,
-  weather: { tempF: 72, condition: 'Clear', icon: 'clear' },
+  weather: { tempF: 72, condition: 'Clear', icon: 'clear', hourly: [], daily: [] },
   stations: [
     { station: { id: '127', name: 'Times Sq–42 St' }, type: 'subway', updatedAt: '', stale: false,
       directions: [{ direction: 'N', label: 'Uptown', arrivals: [{ route: '1', color: '#ee352e', textColor: '#fff', destination: 'Van Cortlandt Park', minutes: 2 }] }],
