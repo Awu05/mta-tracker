@@ -14,7 +14,12 @@ const board = {
 };
 
 beforeEach(() => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => board }));
+  vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+    if (typeof url === 'string' && url.startsWith('/api/board')) {
+      return Promise.resolve({ ok: true, json: async () => board });
+    }
+    return Promise.resolve({ ok: true, json: async () => [] });
+  }));
 });
 
 afterEach(() => {
@@ -94,5 +99,15 @@ describe('App', () => {
     expect(document.querySelector('.app.compact')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /full/i })).toBeInTheDocument();
     expect(window.location.search).toBe('?compact=1');
+  });
+
+  it('Edit toggle reveals the search box for adding stations', async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
+
+    const editButton = screen.getByRole('button', { name: /edit/i });
+    fireEvent.click(editButton);
+
+    expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
   });
 });

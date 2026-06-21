@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as BoardData } from './types';
-import { fetchBoard } from './api';
+import { fetchBoard, removeStation } from './api';
 import { Board } from './components/Board';
 
 const POLL_MS = 10_000;
@@ -17,22 +17,25 @@ export default function App() {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [error, setError] = useState(false);
   const [override, setOverride] = useState<boolean | null>(() => compactOverride());
+  const [editMode, setEditMode] = useState(false);
   const timer = useRef<number | null>(null);
+  const active = useRef(true);
+
+  const reload = useCallback(async () => {
+    try {
+      const data = await fetchBoard();
+      if (active.current) { setBoard(data); setError(false); }
+    } catch {
+      if (active.current) setError(true); // keep last board on screen
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    async function load() {
-      try {
-        const data = await fetchBoard();
-        if (active) { setBoard(data); setError(false); }
-      } catch {
-        if (active) setError(true); // keep last board on screen
-      }
-    }
-    void load();
-    timer.current = window.setInterval(load, POLL_MS);
-    return () => { active = false; if (timer.current) window.clearInterval(timer.current); };
-  }, []);
+    active.current = true;
+    void reload();
+    timer.current = window.setInterval(reload, POLL_MS);
+    return () => { active.current = false; if (timer.current) window.clearInterval(timer.current); };
+  }, [reload]);
 
   if (!board) {
     return <div className="loading">{error ? 'Cannot reach server…' : 'Loading…'}</div>;
@@ -48,9 +51,26 @@ export default function App() {
     window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
   }
 
+  function toggleEdit() {
+    setEditMode((v) => !v);
+  }
+
+  async function onRemove(entry: { id: string; type: 'subway' | 'bus' }) {
+    await removeStation(entry);
+    await reload();
+  }
+
   return (
     <div className={`app mode-${board.displayMode}${compact ? ' compact' : ''}`}>
-      <Board board={display} compact={compact} onToggleCompact={toggleCompact} />
+      <Board
+        board={display}
+        compact={compact}
+        onToggleCompact={toggleCompact}
+        editMode={editMode}
+        onToggleEdit={toggleEdit}
+        onRemove={onRemove}
+        onChanged={reload}
+      />
     </div>
   );
 }

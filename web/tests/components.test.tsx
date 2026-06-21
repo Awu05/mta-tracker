@@ -1,12 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { LineBullet } from '../src/components/LineBullet';
 import { DirectionColumn } from '../src/components/DirectionColumn';
 import { Alerts } from '../src/components/Alerts';
 import { StationSection } from '../src/components/StationSection';
 import { ArrivalRow } from '../src/components/ArrivalRow';
 import { Header } from '../src/components/Header';
+import { EditPanel } from '../src/components/EditPanel';
 import type { DirectionGroup } from '../src/types';
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('components', () => {
   it('LineBullet renders the route with its colors', () => {
@@ -92,15 +97,30 @@ describe('components', () => {
 
   it('Header toggle button switches compact/full labels and fires the callback', () => {
     const onToggleCompact = vi.fn();
+    const onToggleEdit = vi.fn();
     const { rerender } = render(
-      <Header weather={null} stale={false} compact={false} onToggleCompact={onToggleCompact} />
+      <Header weather={null} stale={false} compact={false} onToggleCompact={onToggleCompact} editMode={false} onToggleEdit={onToggleEdit} />
     );
     const toggleButton = screen.getByRole('button', { name: /compact/i });
     fireEvent.click(toggleButton);
     expect(onToggleCompact).toHaveBeenCalledTimes(1);
 
-    rerender(<Header weather={null} stale={false} compact={true} onToggleCompact={onToggleCompact} />);
+    rerender(<Header weather={null} stale={false} compact={true} onToggleCompact={onToggleCompact} editMode={false} onToggleEdit={onToggleEdit} />);
     expect(screen.getByRole('button', { name: /full/i })).toBeInTheDocument();
+  });
+
+  it('Header edit toggle button switches edit/done labels and fires the callback', () => {
+    const onToggleCompact = vi.fn();
+    const onToggleEdit = vi.fn();
+    const { rerender } = render(
+      <Header weather={null} stale={false} compact={false} onToggleCompact={onToggleCompact} editMode={false} onToggleEdit={onToggleEdit} />
+    );
+    const editButton = screen.getByRole('button', { name: /edit/i });
+    fireEvent.click(editButton);
+    expect(onToggleEdit).toHaveBeenCalledTimes(1);
+
+    rerender(<Header weather={null} stale={false} compact={false} onToggleCompact={onToggleCompact} editMode={true} onToggleEdit={onToggleEdit} />);
+    expect(screen.getByRole('button', { name: /done/i })).toBeInTheDocument();
   });
 
   it('StationSection renders the station name, direction, destination, and minutes', () => {
@@ -160,5 +180,85 @@ describe('components', () => {
     );
     expect(screen.getByText('approaching')).toBeInTheDocument();
     expect(screen.queryByText(/min/)).not.toBeInTheDocument();
+  });
+
+  it('StationSection in edit mode renders a remove button that calls onRemove with the entry', () => {
+    const onRemove = vi.fn();
+    render(
+      <StationSection
+        compact={false}
+        editMode
+        onRemove={onRemove}
+        board={{
+          station: { id: '127', name: 'Times Sq–42 St' },
+          type: 'subway',
+          updatedAt: '',
+          stale: false,
+          directions: [
+            { direction: 'N', label: 'Uptown', arrivals: [{ route: '1', color: '#ee352e', textColor: '#fff', destination: 'Van Cortlandt Park', minutes: 2 }] },
+          ],
+          arrivals: [],
+          alerts: [],
+        }}
+      />
+    );
+    const removeButton = screen.getByRole('button', { name: /remove/i });
+    fireEvent.click(removeButton);
+    expect(onRemove).toHaveBeenCalledWith({ id: '127', type: 'subway' });
+  });
+
+  it('StationSection without edit mode does not render a remove button', () => {
+    render(
+      <StationSection
+        compact={false}
+        board={{
+          station: { id: '127', name: 'Times Sq–42 St' },
+          type: 'subway',
+          updatedAt: '',
+          stale: false,
+          directions: [
+            { direction: 'N', label: 'Uptown', arrivals: [{ route: '1', color: '#ee352e', textColor: '#fff', destination: 'Van Cortlandt Park', minutes: 2 }] },
+          ],
+          arrivals: [],
+          alerts: [],
+        }}
+      />
+    );
+    expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
+  });
+
+  it('EditPanel searches, lists results, and adds a station then shows nearby buses', async () => {
+    const onChanged = vi.fn();
+    const searchResults = [{ id: '635', name: '14 St-Union Sq', routes: ['4', '5', '6'] }];
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (typeof url === 'string' && url.startsWith('/api/stations/search')) {
+        return Promise.resolve({ ok: true, json: async () => searchResults });
+      }
+      if (typeof url === 'string' && url.startsWith('/api/nearby-buses')) {
+        return Promise.resolve({ ok: true, json: async () => [] });
+      }
+      if (typeof url === 'string' && url.startsWith('/api/board/stations') && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, status: 201, json: async () => ({ ok: true, entries: [] }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<EditPanel onChanged={onChanged} />);
+
+    const input = screen.getByPlaceholderText(/search/i);
+    fireEvent.change(input, { target: { value: 'union' } });
+
+    await waitFor(() => expect(screen.getByText('14 St-Union Sq')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('14 St-Union Sq'));
+
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    const postCall = fetchMock.mock.calls.find(
+      ([url, init]) => typeof url === 'string' && url.startsWith('/api/board/stations') && init?.method === 'POST'
+    );
+    expect(postCall).toBeTruthy();
+    const body = JSON.parse((postCall![1] as RequestInit).body as string);
+    expect(body).toEqual({ id: '635', type: 'subway' });
   });
 });

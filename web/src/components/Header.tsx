@@ -6,9 +6,11 @@ interface Props {
   stale: boolean;
   compact: boolean;
   onToggleCompact: () => void;
+  editMode: boolean;
+  onToggleEdit: () => void;
 }
 
-export function Header({ weather, stale, compact, onToggleCompact }: Props) {
+export function Header({ weather, stale, compact, onToggleCompact, editMode, onToggleEdit }: Props) {
   return (
     <div className="board-top">
       <div className="topbar-left">
@@ -23,6 +25,16 @@ export function Header({ weather, stale, compact, onToggleCompact }: Props) {
           title={compact ? 'Switch to full view' : 'Switch to compact view'}
         >
           {compact ? '▦ Full' : '▤ Compact'}
+        </button>
+        <button
+          type="button"
+          className="edit-toggle"
+          onClick={onToggleEdit}
+          aria-pressed={editMode}
+          aria-label={editMode ? 'Done editing' : 'Edit stations'}
+          title={editMode ? 'Done editing' : 'Edit stations'}
+        >
+          {editMode ? '✓ Done' : '✎ Edit'}
         </button>
       </div>
       <div className="meta">
