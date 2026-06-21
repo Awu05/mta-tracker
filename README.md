@@ -10,7 +10,6 @@ weather. The backend exposes a small renderer-agnostic JSON API, so the React bo
 one possible front end.
 
 ![board](docs/board-preview.png)
-<!-- (No screenshot is committed yet — the layout is a dark split-column "departure board".) -->
 
 ## Features
 
@@ -42,6 +41,7 @@ All configuration is environment variables (see [`.env.example`](.env.example)):
 |---|---|
 | `STATION` | One or more home-station GTFS parent stop ids, **comma-separated** (e.g. `127,R01`). See [Finding your station id](#finding-your-station-id). |
 | `DISPLAY_MODE` | `kiosk` (large type for a wall display) \| `phone` \| `auto` |
+| `COMPACT` | Default compact view (`true`/`false`) — denser layout, fewer arrivals, severe-only alerts. Overridable per device via `?compact=1`/`?compact=0`. See [Compact view](#compact-view). |
 | `WEATHER_LAT` / `WEATHER_LON` | Weather location (Open-Meteo, no key) |
 | `FEED_REFRESH_SEC` | Arrival feed poll interval (default `30`) |
 | `ALERTS_REFRESH_SEC` | Alerts feed poll interval (default `120` — alerts change slowly) |
@@ -64,6 +64,22 @@ example, Times Square is four ids:
 
 So to show *all* Times Sq trains, set `STATION=127,725,902,R16`. Most stations are a single
 id (e.g. `R01` = Astoria-Ditmars Blvd, J/Z).
+
+## Compact view
+
+Compact mode is built for small or e-ink displays. It:
+
+- shows fewer arrivals per direction (3 instead of 6),
+- shows **only severe alerts** (delays / suspensions, capped at 3) plus a one-line
+  count summary — the noisy "skip-stop" info notices are collapsed into the count,
+- tightens spacing and type for denser, glanceable output.
+
+Set the default with the `COMPACT` env var. Because one server can drive several
+displays, any device can **override per-URL**:
+
+- `http://<host>:8080/?compact=1` — force compact (e.g. your e-ink panel)
+- `http://<host>:8080/?compact=0` — force full (e.g. a wall monitor)
+- no param — use the server's `COMPACT` default
 
 ## Finding your station id
 
