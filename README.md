@@ -15,7 +15,8 @@ React board is just one possible front end.
 
 - 🚇 **Live subway arrivals** for any station(s), split into Uptown / Downtown with minute countdowns.
 - 🚌 **Live bus arrivals** (MTA Bus Time) for any stop(s) — a single soonest-first list per stop, with "approaching / N stops away" when there's no ETA.
-- 🏙️ **Multiple stations/stops** at once — comma-separated config, rendered as stacked sections.
+- 🏙️ **Multiple stations/stops** at once, rendered as stacked sections.
+- 🔎 **Add stations from the app** — an Edit mode lets you search a station by name and add it (no IDs), then pick from auto-suggested **nearby bus stops**. The list is saved on the server and shared by every display.
 - ⚠️ **Service alerts** per station, with severity (delay / suspended / info) inferred from the feed.
 - 🎨 **Official line bullets** (correct MTA colors) for quick scanning.
 - 🌤️ **Weather + clock** in a shared top bar.
@@ -27,12 +28,15 @@ React board is just one possible front end.
 ## Quick start (Docker)
 
 ```bash
-cp .env.example .env       # set STATION, WEATHER_LAT/LON, DISPLAY_MODE
+cp .env.example .env       # set WEATHER_LAT/LON, an optional starting STATION, DISPLAY_MODE
 docker compose up -d --build
-# open http://<host-ip>:8080
+# open http://<host-ip>:8080  → click "Edit" to search & add stations
 ```
 
-That's it — one container serves both the JSON API and the built web app.
+That's it — one container serves both the JSON API and the built web app. You don't have to
+get the config perfect up front: `STATION`/`BUS_STOPS` just **seed the first run**, and after
+that you manage the board in the app (see [Editing the board](#editing-the-board)). The list is
+persisted in a Docker volume (`mta-data`), so it survives restarts.
 
 ## Configuration
 
@@ -40,8 +44,8 @@ All configuration is environment variables (see [`.env.example`](.env.example)):
 
 | Variable | Meaning |
 |---|---|
-| `STATION` | One or more home-station GTFS parent stop ids, **comma-separated** (e.g. `127,R01`). See [Finding your station id](#finding-your-station-id). |
-| `BUS_STOPS` | Optional MTA bus stop code(s), **comma-separated** (e.g. `401687,404923`). Requires `MTA_API_KEY`. See [Bus stops](#bus-stops). |
+| `STATION` | **First-run seed** for the board — one or more subway GTFS parent stop ids, comma-separated (e.g. `127,R01`). After first run, edit the board in the app. Can be empty (add everything from the UI). |
+| `BUS_STOPS` | **First-run seed** for bus stops — MTA bus stop code(s), comma-separated. Requires `MTA_API_KEY`. After first run, add buses via the Edit UI's nearby-stop picker. See [Bus stops](#bus-stops). |
 | `DISPLAY_MODE` | `kiosk` (large type for a wall display) \| `phone` \| `auto` |
 | `COMPACT` | Default compact view (`true`/`false`) — denser layout, fewer arrivals, severe-only alerts. Overridable per device via `?compact=1`/`?compact=0`. See [Compact view](#compact-view). |
 | `WEATHER_LAT` / `WEATHER_LON` | Weather location (Open-Meteo, no key) |
@@ -83,9 +87,23 @@ displays, any device can **override per-URL**:
 - `http://<host>:8080/?compact=0` — force full (e.g. a wall monitor)
 - no param — use the server's `COMPACT` default
 
+## Editing the board
+
+Click **✎ Edit** in the top bar. While editing you can:
+
+- **Search & add a station** — type a station name (no IDs to look up) and click a result to add it.
+- **Add nearby buses** — right after adding a station, a checklist of the **closest bus stops** (with their routes and distance) appears; tick the ones you want. Bus lookups need `MTA_API_KEY`.
+- **Remove** — each section shows an **×** to drop it from the board.
+
+Changes are saved on the **server** (`data/board.json`, persisted via the `mta-data` Docker
+volume) and shared by every display — edit from your phone and the kiosk/e-ink panel update on
+their next refresh. Click **✓ Done** to return to the clean board. (`STATION`/`BUS_STOPS` only
+seed the very first run; after that this list is the source of truth.)
+
 ## Finding your station id
 
-Station ids are GTFS parent stop ids. Every station is already bundled in
+You usually don't need this anymore — just use the [Edit UI](#editing-the-board). But if you
+want to seed `STATION` directly: station ids are GTFS parent stop ids. Every station is bundled in
 [`server/src/data/stations.json`](server/src/data/stations.json) (id → name + routes), so you
 can grep it for your stop:
 
@@ -162,6 +180,13 @@ feed and show under the stop, just like subway alerts. Bus route badges are roun
 ```
 
 `GET /api/health` returns `{ "status": "ok" }` (used by the Docker healthcheck).
+
+Board editing (used by the Edit UI):
+
+- `GET /api/stations/search?q=` — subway search → `[{ id, name, routes }]`.
+- `GET /api/nearby-buses?stationId=` — nearby bus stops → `[{ code, name, routes, distanceMeters, alreadyAdded }]`.
+- `POST /api/board/stations` `{ id, type }` — add a subway station or bus stop.
+- `DELETE /api/board/stations` `{ id, type }` — remove one.
 
 ## Kiosk display (HDMI)
 
