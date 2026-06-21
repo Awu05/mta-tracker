@@ -13,8 +13,9 @@
  *     route id (via tripToRoute), and record that route as serving that parent station.
  *  4) Parse routes.txt for route_sort_order, used to sort each station's route list
  *     (falls back to alphabetical for routes without a known sort order).
- *  5) Emit stations.json = { [parentId]: { name, routes } } for every parent station,
- *     including ones with zero observed routes.
+ *  5) Emit stations.json = { [parentId]: { name, lat, lon, routes } } for every parent
+ *     station, including ones with zero observed routes. lat/lon are parsed from the
+ *     parent station's own stop_lat/stop_lon in stops.txt.
  *
  * Usage:
  *   npx tsx scripts/build-stations.ts [path/to/gtfs_subway_dir]
@@ -28,6 +29,8 @@ import { join } from 'node:path';
 
 interface StationInfo {
   name: string;
+  lat: number;
+  lon: number;
   routes: string[];
 }
 
@@ -84,10 +87,12 @@ const stopsText = readFileSync(join(gtfsDir, 'stops.txt'), 'utf8');
 const stopsCsv = parseCsv(stopsText);
 const sIdIdx = colIndex(stopsCsv.header, 'stop_id');
 const sNameIdx = colIndex(stopsCsv.header, 'stop_name');
+const sLatIdx = colIndex(stopsCsv.header, 'stop_lat');
+const sLonIdx = colIndex(stopsCsv.header, 'stop_lon');
 const sLocTypeIdx = colIndex(stopsCsv.header, 'location_type');
 const sParentIdx = colIndex(stopsCsv.header, 'parent_station');
 
-const parents: Record<string, string> = {};
+const parents: Record<string, { name: string; lat: number; lon: number }> = {};
 const platformToParent: Record<string, string> = {};
 
 for (const row of stopsCsv.rows) {
@@ -95,7 +100,11 @@ for (const row of stopsCsv.rows) {
   const locType = row[sLocTypeIdx];
   const parentStation = row[sParentIdx];
   if (locType === '1') {
-    parents[stopId] = row[sNameIdx];
+    parents[stopId] = {
+      name: row[sNameIdx],
+      lat: Number(row[sLatIdx]),
+      lon: Number(row[sLonIdx]),
+    };
   }
   if (parentStation) {
     platformToParent[stopId] = parentStation;
@@ -166,7 +175,8 @@ function sortRoutes(routes: string[]): string[] {
 const out: Record<string, StationInfo> = {};
 for (const parentId of Object.keys(parents).sort()) {
   const routes = stationRoutes[parentId] ? sortRoutes([...stationRoutes[parentId]]) : [];
-  out[parentId] = { name: parents[parentId], routes };
+  const { name, lat, lon } = parents[parentId];
+  out[parentId] = { name, lat, lon, routes };
 }
 
 const outPath = join(import.meta.dirname, '..', 'src', 'data', 'stations.json');
