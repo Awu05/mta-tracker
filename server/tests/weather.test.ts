@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fetchWeather, buildHourly, buildDaily } from '../src/weather';
+import { fetchWeather, buildHourly, buildDaily, geocodeLocation } from '../src/weather';
 
 const CURRENT_ONLY = {
   current: { time: '2026-06-21T15:00', temperature_2m: 71.6, weather_code: 0 },
@@ -102,5 +102,30 @@ describe('buildDaily', () => {
 
   it('returns [] when no daily block is present', () => {
     expect(buildDaily(CURRENT_ONLY as never)).toEqual([]);
+  });
+});
+
+describe('geocodeLocation', () => {
+  it('maps Open-Meteo geocoding results', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          { name: 'Brooklyn', admin1: 'New York', country: 'United States', latitude: 40.6782, longitude: -73.9442 },
+        ],
+      }),
+    }) as unknown as typeof fetch;
+    const out = await geocodeLocation('brooklyn', fakeFetch);
+    expect(out).toEqual([
+      { name: 'Brooklyn', admin1: 'New York', country: 'United States', lat: 40.6782, lon: -73.9442 },
+    ]);
+    const url = (fakeFetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(url).toContain('geocoding-api.open-meteo.com');
+    expect(url).toContain('name=brooklyn');
+  });
+
+  it('returns [] when there are no results', async () => {
+    const fakeFetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) as unknown as typeof fetch;
+    expect(await geocodeLocation('zzz', fakeFetch)).toEqual([]);
   });
 });

@@ -103,3 +103,28 @@ export async function fetchWeather(
     clearTimeout(timer);
   }
 }
+
+export interface GeoResult { name: string; admin1: string; country: string; lat: number; lon: number }
+
+interface OMGeo { results?: Array<{ name: string; admin1?: string; country?: string; latitude: number; longitude: number }> }
+
+export async function geocodeLocation(q: string, fetchFn: typeof fetch = fetch): Promise<GeoResult[]> {
+  const url =
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en&format=json`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WEATHER_TIMEOUT_MS);
+  try {
+    const res = await fetchFn(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`Geocode failed: ${res.status}`);
+    const data = (await res.json()) as OMGeo;
+    return (data.results ?? []).map((r) => ({
+      name: r.name,
+      admin1: r.admin1 ?? '',
+      country: r.country ?? '',
+      lat: r.latitude,
+      lon: r.longitude,
+    }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
