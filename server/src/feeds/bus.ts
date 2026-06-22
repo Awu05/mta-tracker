@@ -259,7 +259,7 @@ export function transformBusStop(
   return { name, arrivals, alerts };
 }
 
-export async function fetchBusStop(
+async function fetchBusStop(
   stopCode: string,
   key: string,
   fetchFn: typeof fetch = fetch,
@@ -287,8 +287,9 @@ export async function pollBusStops(
     busStops.map(async (code) => {
       try {
         const siri = await fetchBusStop(code, key, fetchFn);
-        const { name, arrivals, alerts } = transformBusStop(siri, now());
-        cache.setBusArrivals(code, arrivals, now(), name ?? undefined);
+        const nowMs = now();
+        const { name, arrivals, alerts } = transformBusStop(siri, nowMs);
+        cache.setBusArrivals(code, arrivals, nowMs, name ?? undefined);
         cache.setAlerts(code, alerts);
       } catch (err) {
         console.error(`[bus] poll failed for stop ${code}; keeping last-good data:`, err);

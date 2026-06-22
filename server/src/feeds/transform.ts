@@ -12,7 +12,7 @@ interface Entity {
   } | null;
 }
 
-export interface TransformLookups {
+interface TransformLookups {
   stopName(stopId: string): string;
   routeStyle(route: string): { color: string; textColor: string };
 }
@@ -26,13 +26,29 @@ function toSeconds(time: GtfsTime): number | null {
 
 const LABEL: Record<Direction, string> = { N: 'Uptown', S: 'Downtown' };
 
-export function transformArrivals(
+function finalizeGroups(byDir: Record<Direction, Arrival[]>): DirectionGroup[] {
+  (['N', 'S'] as Direction[]).forEach((d) =>
+    byDir[d].sort((a, b) => (a.minutes as number) - (b.minutes as number)),
+  );
+  return (['N', 'S'] as Direction[]).map((d) => ({ direction: d, label: LABEL[d], arrivals: byDir[d] }));
+}
+
+/**
+ * Single pass over all decoded feed entities, grouping arrivals for every
+ * configured station at once. Cost is O(entities × stopsPerTrip) regardless of
+ * how many stations are configured — versus re-scanning the whole feed once per
+ * station — and each trip's destination/route style is resolved at most once,
+ * only when a stop actually qualifies. Returns a map keyed by station id; every
+ * requested id is present (empty Uptown/Downtown groups if it had no arrivals).
+ */
+export function transformArrivalsByStation(
   entities: Entity[],
-  stationId: string,
+  stationIds: string[],
   nowMs: number,
   lookups: TransformLookups,
-): DirectionGroup[] {
-  const byDir: Record<Direction, Arrival[]> = { N: [], S: [] };
+): Map<string, DirectionGroup[]> {
+  const byStation = new Map<string, Record<Direction, Arrival[]>>();
+  for (const id of stationIds) byStation.set(id, { N: [], S: [] });
 
   for (const e of entities) {
     const tu = e.tripUpdate;
@@ -40,27 +56,37 @@ export function transformArrivals(
     const stops = tu?.stopTimeUpdate;
     if (!route || !stops || stops.length === 0) continue;
 
-    // Destination = last stop in the trip's remaining schedule.
-    const lastStopId = stops[stops.length - 1]?.stopId ?? '';
-    const destination = lookups.stopName(lastStopId);
+    // Resolved lazily on the first qualifying stop, then reused for the trip.
+    let destination: string | null = null;
+    let style: { color: string; textColor: string } | null = null;
 
     for (const stu of stops) {
       const sid = stu.stopId ?? '';
-      if (sid !== `${stationId}N` && sid !== `${stationId}S`) continue;
-      const dir = sid.slice(-1) as Direction;
+      const dir = sid.slice(-1);
+      if (dir !== 'N' && dir !== 'S') continue;
+      const groups = byStation.get(sid.slice(0, -1));
+      if (!groups) continue; // stop isn't at a configured station
       const sec = toSeconds(stu.arrival?.time);
       if (sec == null) continue;
       const minutes = Math.floor((sec * 1000 - nowMs) / 60000);
       if (minutes < 0) continue;
-      const style = lookups.routeStyle(route);
-      byDir[dir].push({ route, color: style.color, textColor: style.textColor, destination, minutes });
+      if (destination === null) destination = lookups.stopName(stops[stops.length - 1]?.stopId ?? '');
+      if (style === null) style = lookups.routeStyle(route);
+      groups[dir].push({ route, color: style.color, textColor: style.textColor, destination, minutes });
     }
   }
 
-  // Subway arrivals always have a numeric `minutes` (set above); `note`/null is bus-only.
-  (['N', 'S'] as Direction[]).forEach((d) =>
-    byDir[d].sort((a, b) => (a.minutes as number) - (b.minutes as number)),
-  );
+  const result = new Map<string, DirectionGroup[]>();
+  for (const [id, byDir] of byStation) result.set(id, finalizeGroups(byDir));
+  return result;
+}
 
-  return (['N', 'S'] as Direction[]).map((d) => ({ direction: d, label: LABEL[d], arrivals: byDir[d] }));
+/** Convenience wrapper for a single station. */
+export function transformArrivals(
+  entities: Entity[],
+  stationId: string,
+  nowMs: number,
+  lookups: TransformLookups,
+): DirectionGroup[] {
+  return transformArrivalsByStation(entities, [stationId], nowMs, lookups).get(stationId)!;
 }

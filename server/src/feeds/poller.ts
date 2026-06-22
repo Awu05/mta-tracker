@@ -1,14 +1,14 @@
 import type { BoardCache } from '../cache';
-import type { Alert, DirectionGroup } from '../types';
+import type { Alert } from '../types';
 import { feedsForRoutes, feedUrl, ALERTS_URL } from './feedUrls';
-import { transformArrivals } from './transform';
+import { transformArrivalsByStation } from './transform';
 import { transformAlerts } from './alerts';
 import { getRouteStyle, stopName } from '../staticGtfs';
 
 export type DecodeFn = (bytes: Uint8Array) => { entity?: unknown[] };
 type NowFn = () => number;
 
-export interface StationCtx { id: string; name: string; routes: string[]; }
+interface StationCtx { id: string; name: string; routes: string[]; }
 
 const FETCH_TIMEOUT_MS = 12_000;
 
@@ -57,14 +57,14 @@ export async function pollArrivals(
   }
 
   const nowMs = now();
+  const byStation = transformArrivalsByStation(
+    tripEntities as never[],
+    stations.map((s) => s.id),
+    nowMs,
+    { stopName, routeStyle: getRouteStyle },
+  );
   for (const station of stations) {
-    const directions: DirectionGroup[] = transformArrivals(
-      tripEntities as never[],
-      station.id,
-      nowMs,
-      { stopName, routeStyle: getRouteStyle },
-    );
-    cache.setDirections(station.id, directions, nowMs);
+    cache.setDirections(station.id, byStation.get(station.id) ?? [], nowMs);
   }
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { transformArrivals } from '../src/feeds/transform';
+import { transformArrivals, transformArrivalsByStation } from '../src/feeds/transform';
 
 // Minimal decoded-entity shape the transform consumes.
 function tripUpdate(routeId: string, stops: Array<[string, number]>) {
@@ -60,5 +60,33 @@ describe('transformArrivals', () => {
     }];
     const groups = transformArrivals(entities, '127', NOW, lookups);
     expect(groups.find((g) => g.direction === 'N')!.arrivals[0].minutes).toBe(2);
+  });
+});
+
+describe('transformArrivalsByStation', () => {
+  const NOW = 1_700_000_000_000;
+
+  it('groups multiple stations from one pass, including a trip that serves two', () => {
+    const entities = [
+      // One trip stopping at both configured stations (last stop = destination).
+      tripUpdate('1', [['127N', 1_700_000_120], ['142N', 1_700_000_300]]),
+      tripUpdate('1', [['142S', 1_700_000_060]]),
+    ];
+    const map = transformArrivalsByStation(entities, ['127', '142'], NOW, lookups);
+
+    const at127 = map.get('127')!;
+    const at142 = map.get('142')!;
+    expect(at127.find((g) => g.direction === 'N')!.arrivals.map((a) => a.minutes)).toEqual([2]);
+    expect(at142.find((g) => g.direction === 'N')!.arrivals.map((a) => a.minutes)).toEqual([5]);
+    expect(at142.find((g) => g.direction === 'S')!.arrivals.map((a) => a.minutes)).toEqual([1]);
+    // Destination resolved once per trip from its last stop ('142N' -> South Ferry).
+    expect(at127.find((g) => g.direction === 'N')!.arrivals[0].destination).toBe('South Ferry');
+  });
+
+  it('returns empty groups for a configured station with no arrivals', () => {
+    const map = transformArrivalsByStation([], ['127'], NOW, lookups);
+    const at127 = map.get('127')!;
+    expect(at127).toHaveLength(2);
+    expect(at127.every((g) => g.arrivals.length === 0)).toBe(true);
   });
 });
