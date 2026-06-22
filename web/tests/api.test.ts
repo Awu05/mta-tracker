@@ -62,9 +62,19 @@ describe('addStation', () => {
     expect(body).toEqual({ id: '635', type: 'subway' });
   });
 
-  it('throws on a non-ok response', async () => {
+  it('resolves false when the station is already on the board (409)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 409 }));
-    await expect(addStation({ id: '635', type: 'subway' })).rejects.toThrow(/409/);
+    await expect(addStation({ id: '635', type: 'subway' })).resolves.toBe(false);
+  });
+
+  it('resolves true when newly added (201)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 201, json: async () => ({ ok: true }) }));
+    await expect(addStation({ id: '635', type: 'subway' })).resolves.toBe(true);
+  });
+
+  it('throws on a non-ok response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    await expect(addStation({ id: '635', type: 'subway' })).rejects.toThrow(/500/);
   });
 });
 

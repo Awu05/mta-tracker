@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { SearchResult, NearbyStop } from '../api';
-import { searchStations, fetchNearbyBuses, addStation } from '../api';
+import { searchStations, fetchNearbyBuses, addStation, removeStation } from '../api';
 
 export function EditPanel({ onChanged }: { onChanged: () => void }) {
   const [query, setQuery] = useState('');
@@ -9,9 +9,13 @@ export function EditPanel({ onChanged }: { onChanged: () => void }) {
   const [nearby, setNearby] = useState<NearbyStop[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const searchSeq = useRef(0);
 
   async function onQueryChange(q: string) {
     setQuery(q);
+    // Bump the sequence on every change so a slower, older in-flight response
+    // can't overwrite the results of a newer query (out-of-order responses).
+    const seq = ++searchSeq.current;
     if (!q.trim()) {
       setResults([]);
       return;
@@ -19,8 +23,10 @@ export function EditPanel({ onChanged }: { onChanged: () => void }) {
     try {
       setError(null);
       const found = await searchStations(q);
+      if (seq !== searchSeq.current) return;
       setResults(found);
     } catch {
+      if (seq !== searchSeq.current) return;
       setError('Search failed. Try again.');
     }
   }
@@ -29,8 +35,8 @@ export function EditPanel({ onChanged }: { onChanged: () => void }) {
     try {
       setBusy(true);
       setError(null);
-      await addStation({ id: station.id, type: 'subway' });
-      onChanged();
+      const added = await addStation({ id: station.id, type: 'subway' });
+      if (added) onChanged();
       setJustAdded({ id: station.id, name: station.name });
       setQuery('');
       setResults([]);
@@ -44,15 +50,19 @@ export function EditPanel({ onChanged }: { onChanged: () => void }) {
   }
 
   async function onPickBus(stop: NearbyStop) {
-    if (stop.alreadyAdded) return;
+    const adding = !stop.alreadyAdded;
     try {
       setBusy(true);
       setError(null);
-      await addStation({ id: stop.code, type: 'bus' });
+      if (adding) {
+        await addStation({ id: stop.code, type: 'bus' });
+      } else {
+        await removeStation({ id: stop.code, type: 'bus' });
+      }
       onChanged();
-      setNearby((prev) => prev.map((s) => (s.code === stop.code ? { ...s, alreadyAdded: true } : s)));
+      setNearby((prev) => prev.map((s) => (s.code === stop.code ? { ...s, alreadyAdded: adding } : s)));
     } catch {
-      setError('Could not add that bus stop. Try again.');
+      setError(adding ? 'Could not add that bus stop. Try again.' : 'Could not remove that bus stop. Try again.');
     } finally {
       setBusy(false);
     }
@@ -71,18 +81,18 @@ export function EditPanel({ onChanged }: { onChanged: () => void }) {
         <div className="nearby-list">
           <div className="nearby-title">Nearby bus stops for {justAdded.name}</div>
           {nearby.map((stop) => (
-            <div key={stop.code} className="nearby-item">
+            <label key={stop.code} className="nearby-item">
               <input
                 type="checkbox"
                 checked={stop.alreadyAdded}
-                disabled={stop.alreadyAdded || busy}
+                disabled={busy}
                 onChange={() => onPickBus(stop)}
-                aria-label={`Add ${stop.name}`}
+                aria-label={`${stop.alreadyAdded ? 'Remove' : 'Add'} ${stop.name}`}
               />
               <span className="nearby-name">{stop.name}</span>
               <span className="nearby-routes">{stop.routes.join(', ')}</span>
               <span className="nearby-distance">{Math.round(stop.distanceMeters)} m</span>
-            </div>
+            </label>
           ))}
           <button type="button" className="edit-done" onClick={onDone}>Done</button>
         </div>

@@ -22,13 +22,16 @@ export async function fetchNearbyBuses(stationId: string): Promise<NearbyStop[]>
   return (await res.json()) as NearbyStop[];
 }
 
-export async function addStation(entry: { id: string; type: 'subway' | 'bus' }): Promise<void> {
+// Returns true if newly added, false if it was already on the board (HTTP 409).
+export async function addStation(entry: { id: string; type: 'subway' | 'bus' }): Promise<boolean> {
   const res = await fetch('/api/board/stations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(entry),
   });
+  if (res.status === 409) return false;
   if (!res.ok) throw new Error(`Add station failed: ${res.status}`);
+  return true;
 }
 
 export async function removeStation(entry: { id: string; type: 'subway' | 'bus' }): Promise<void> {
