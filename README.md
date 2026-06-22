@@ -11,15 +11,19 @@ React board is just one possible front end.
 
 ![board](docs/board-preview.png)
 
+Click the weather in the top bar to expand a full-width forecast (next 12 hours + 5 days):
+
+![board with forecast expanded](docs/board-preview-2.png)
+
 ## Features
 
 - 🚇 **Live subway arrivals** for any station(s), split into Uptown / Downtown with minute countdowns.
 - 🚌 **Live bus arrivals** (MTA Bus Time) for any stop(s) — a single soonest-first list per stop, with "approaching / N stops away" when there's no ETA.
 - 🏙️ **Multiple stations/stops** at once, rendered as stacked sections.
 - 🔎 **Add stations from the app** — an Edit mode lets you search a station by name and add it (no IDs), then pick from auto-suggested **nearby bus stops**. The list is saved on the server and shared by every display.
-- ⚠️ **Service alerts** per station, with severity (delay / suspended / info) inferred from the feed.
+- ⚠️ **Service alerts** per station, with severity (delay / suspended / info) inferred from the feed. They start minimized (severe alerts + a count summary) and expand on click.
 - 🎨 **Official line bullets** (correct MTA colors) for quick scanning.
-- 🌤️ **Weather + clock** in a shared top bar — a condition icon with the current temp; click it for a **click-to-expand forecast** (next 12 hours + next 5 days, with precip chance).
+- 🌤️ **Weather + clock** in a shared top bar — a condition icon with the current temp; click it to expand a **full-width forecast** (next 12 hours + next 5 days, with precip chance) styled like the departure tables.
 - 🖥️ **Kiosk or phone** layouts via a single `DISPLAY_MODE` flag (responsive either way).
 - 🧱 **Resilient**: failed feed fetches keep the last-good data and show a "stale" indicator instead of blanking; per-feed isolation; fetch timeouts.
 - 🐳 **Dockerized**: multi-stage build, non-root runtime, healthcheck, `restart: unless-stopped`.
@@ -91,8 +95,8 @@ displays, any device can **override per-URL**:
 
 Click **✎ Edit** in the top bar. While editing you can:
 
-- **Search & add a station** — type a station name (no IDs to look up) and click a result to add it.
-- **Add nearby buses** — right after adding a station, a checklist of the **closest bus stops** (with their routes and distance) appears; tick the ones you want. Bus lookups need `MTA_API_KEY`.
+- **Search & add a station** — type a station name (no IDs to look up) and click a result to add it. Searching for a station that's **already on the board** just reopens its nearby-bus list, so you can come back later to add more stops.
+- **Add / remove nearby buses** — right after adding a station, a checklist of the **closest bus stops** (with their routes and distance) appears. Click anywhere on a row to toggle it: a green check adds the stop, unchecking removes it. Bus lookups need `MTA_API_KEY`.
 - **Remove** — each section shows an **×** to drop it from the board.
 
 Changes are saved on the **server** (`data/board.json`, persisted via the `mta-data` Docker
