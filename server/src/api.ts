@@ -6,6 +6,7 @@ import type { BoardEntry } from './types';
 import { searchStations, getStation } from './staticGtfs';
 import { fetchNearbyBusStops } from './feeds/bus';
 import { geocodeLocation } from './weather';
+import { generateCode } from './boards/code';
 
 export interface AppDeps {
   cache: BoardCache;
@@ -20,6 +21,17 @@ export interface AppDeps {
   fetchFn?: typeof fetch;
   staticDir?: string;
 }
+
+function readCookie(header: string | undefined, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k === name) return decodeURIComponent(v.join('='));
+  }
+  return null;
+}
+
+const COOKIE_MAX_AGE = 'Max-Age=31536000; Path=/; SameSite=Lax';
 
 export function createApp(deps: AppDeps): Express {
   const { cache, repo, weatherCache, defaultLat, defaultLon, displayMode, compact, mtaApiKey, onBoardChange, fetchFn, staticDir } = deps;
@@ -147,7 +159,21 @@ export function createApp(deps: AppDeps): Express {
     }
   });
 
-  // (Task 8 inserts routing + static here.)
+  app.get('/', (req, res) => {
+    const existing = readCookie(req.headers.cookie, 'board');
+    const code = existing ?? generateCode();
+    if (!existing) res.setHeader('Set-Cookie', `board=${code}; ${COOKIE_MAX_AGE}`);
+    res.redirect(302, `/b/${code}`);
+  });
+
+  if (staticDir) {
+    app.get('/b/:code', (req, res) => {
+      res.setHeader('Set-Cookie', `board=${encodeURIComponent(req.params.code)}; ${COOKIE_MAX_AGE}`);
+      res.sendFile('index.html', { root: staticDir });
+    });
+    app.use(express.static(staticDir));
+    app.get(/^(?!\/api).*/, (_req, res) => res.sendFile('index.html', { root: staticDir }));
+  }
 
   return app;
 }
