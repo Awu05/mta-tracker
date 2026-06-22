@@ -9,9 +9,20 @@ interface Props {
   onToggleCompact: () => void;
   editMode: boolean;
   onToggleEdit: () => void;
+  forecastOpen?: boolean;
+  onToggleForecast?: () => void;
 }
 
-export function Header({ weather, stale, compact, onToggleCompact, editMode, onToggleEdit }: Props) {
+export function Header({
+  weather,
+  stale,
+  compact,
+  onToggleCompact,
+  editMode,
+  onToggleEdit,
+  forecastOpen = true,
+  onToggleForecast = () => {},
+}: Props) {
   return (
     <div className="board-top">
       <div className="topbar-left">
@@ -40,7 +51,9 @@ export function Header({ weather, stale, compact, onToggleCompact, editMode, onT
       </div>
       <div className="meta">
         <Clock />
-        {weather && <WeatherWidget weather={weather} />}
+        {weather && (
+          <WeatherWidget weather={weather} forecastOpen={forecastOpen} onToggle={onToggleForecast} />
+        )}
       </div>
     </div>
   );

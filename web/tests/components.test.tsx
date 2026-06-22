@@ -56,10 +56,9 @@ describe('components', () => {
     expect(screen.getByText(/Delays near 57 St/)).toBeInTheDocument();
   });
 
-  it('Alerts in compact mode shows only severe alerts plus a muted summary', () => {
+  it('Alerts start minimized: only severe alerts plus a muted summary', () => {
     render(
       <Alerts
-        compact
         alerts={[
           { routes: ['2', '3'], severity: 'delay', text: 'Severe delays' },
           { routes: ['1'], severity: 'suspended', text: 'No 1 service' },
@@ -72,10 +71,9 @@ describe('components', () => {
     expect(screen.getByText(/1 info/)).toBeInTheDocument();
   });
 
-  it('Alerts in compact mode expands to show info alerts and collapses again', () => {
+  it('Alerts expand to show info alerts and collapse again', () => {
     render(
       <Alerts
-        compact
         alerts={[
           { routes: ['2'], severity: 'delay', text: 'Severe delays' },
           { routes: ['1'], severity: 'info', text: '1 skips 50 St' },

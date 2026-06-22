@@ -1,27 +1,25 @@
 import { useState } from 'react';
 import type { Alert } from '../types';
 
-export function Alerts({ alerts, compact }: { alerts: Alert[]; compact?: boolean }) {
+function AlertLine({ alert }: { alert: Alert }) {
+  return (
+    <div className="alert-line">
+      <b>⚠ {alert.routes.join('/')}:</b> {alert.text}
+    </div>
+  );
+}
+
+// Alerts start minimized in every view: severe alerts (delays/suspensions) are
+// shown up to 3, with a one-line count summary; clicking it expands to all.
+export function Alerts({ alerts }: { alerts: Alert[] }) {
   const [expanded, setExpanded] = useState(false);
 
   if (alerts.length === 0) return null;
 
-  if (!compact) {
-    return (
-      <div className="alerts">
-        {alerts.map((a, i) => (
-          <div key={i} className="alert-line">
-            <b>⚠ {a.routes.join('/')}:</b> {a.text}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
   const severe = alerts.filter((a) => a.severity === 'delay' || a.severity === 'suspended');
   const delays = alerts.filter((a) => a.severity === 'delay').length;
   const suspended = alerts.filter((a) => a.severity === 'suspended').length;
-  const info = alerts.filter((a) => a.severity !== 'delay' && a.severity !== 'suspended').length;
+  const info = alerts.length - delays - suspended;
 
   const summaryParts: string[] = [];
   if (delays > 0) summaryParts.push(`${delays} delays`);
@@ -32,11 +30,7 @@ export function Alerts({ alerts, compact }: { alerts: Alert[]; compact?: boolean
   if (expanded) {
     return (
       <div className="alerts">
-        {alerts.map((a, i) => (
-          <div key={i} className="alert-line">
-            <b>⚠ {a.routes.join('/')}:</b> {a.text}
-          </div>
-        ))}
+        {alerts.map((a, i) => <AlertLine key={i} alert={a} />)}
         <button type="button" className="alert-summary" aria-expanded={true} onClick={() => setExpanded(false)}>
           ▴ Show less
         </button>
@@ -46,11 +40,7 @@ export function Alerts({ alerts, compact }: { alerts: Alert[]; compact?: boolean
 
   return (
     <div className="alerts">
-      {severe.slice(0, 3).map((a, i) => (
-        <div key={i} className="alert-line">
-          <b>⚠ {a.routes.join('/')}:</b> {a.text}
-        </div>
-      ))}
+      {severe.slice(0, 3).map((a, i) => <AlertLine key={i} alert={a} />)}
       {summaryParts.length > 0 && (
         <button type="button" className="alert-summary" aria-expanded={false} onClick={() => setExpanded(true)}>
           ⚠ {summaryText} ▾

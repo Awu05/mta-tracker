@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { Board as BoardData } from '../types';
 import { Header } from './Header';
+import { Forecast } from './Forecast';
 import { StationSection } from './StationSection';
 import { EditPanel } from './EditPanel';
 
@@ -20,6 +22,8 @@ export function Board({
   onRemove: (entry: { id: string; type: 'subway' | 'bus' }) => void;
   onChanged: () => void;
 }) {
+  const [forecastOpen, setForecastOpen] = useState(true);
+
   return (
     <div className="board">
       <Header
@@ -29,8 +33,11 @@ export function Board({
         onToggleCompact={onToggleCompact}
         editMode={editMode}
         onToggleEdit={onToggleEdit}
+        forecastOpen={forecastOpen}
+        onToggleForecast={() => setForecastOpen((o) => !o)}
       />
       {editMode && <EditPanel onChanged={onChanged} />}
+      {board.weather && <Forecast weather={board.weather} open={forecastOpen} />}
       {board.stations.map((s) => (
         <StationSection key={s.station.id} board={s} compact={compact} editMode={editMode} onRemove={onRemove} />
       ))}

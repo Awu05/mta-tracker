@@ -39,14 +39,14 @@ export function StationSection({
                 : board.arrivals.slice(0, compact ? 3 : 6).map((a, i) => <ArrivalRow key={i} arrival={a} bus />)}
             </div>
           </div>
-          <Alerts alerts={board.alerts} compact={compact} />
+          <Alerts alerts={board.alerts} />
         </>
       ) : (
         <>
           <div className="cols">
             {board.directions.map((g) => <DirectionColumn key={g.direction} group={g} compact={compact} />)}
           </div>
-          <Alerts alerts={board.alerts} compact={compact} />
+          <Alerts alerts={board.alerts} />
         </>
       )}
     </div>
