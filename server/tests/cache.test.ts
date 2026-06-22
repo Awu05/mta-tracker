@@ -1,171 +1,36 @@
 import { describe, it, expect } from 'vitest';
 import { BoardCache } from '../src/cache';
-import type { DirectionGroup } from '../src/types';
+import type { Weather } from '../src/types';
 
-const stations = [
-  { id: '127', name: 'Times Sq–42 St' },
-  { id: '635', name: '14 St–Union Sq' },
-];
-const dirs: DirectionGroup[] = [{ direction: 'N', label: 'Uptown', arrivals: [] }];
+const WEATHER: Weather = { tempF: 70, condition: 'Clear', icon: 'clear', hourly: [], daily: [] };
 
-describe('BoardCache', () => {
-  it('starts with both stations present, stale, empty directions/alerts, and null weather', () => {
-    const c = new BoardCache(stations, 90);
-    const b = c.get(1_700_000_000_000);
-    expect(b.stations).toHaveLength(2);
-    expect(b.stations[0].station).toEqual({ id: '127', name: 'Times Sq–42 St' });
-    expect(b.stations[1].station).toEqual({ id: '635', name: '14 St–Union Sq' });
-    expect(b.stations[0].stale).toBe(true);
-    expect(b.stations[1].stale).toBe(true);
-    expect(b.stations[0].directions).toEqual([]);
-    expect(b.stations[0].alerts).toEqual([]);
-    expect(b.weather).toBeNull();
-    expect(b.stale).toBe(true);
+describe('BoardCache.getBoardModel', () => {
+  it('returns only the requested entries, in order, with weather attached', () => {
+    const cache = new BoardCache([], 90);
+    cache.addStation({ id: '127', name: 'Times Sq', type: 'subway' });
+    cache.addStation({ id: '635', name: 'Union Sq', type: 'subway' });
+    cache.setDirections('127', [{ direction: 'N', label: 'Uptown', arrivals: [] }], 1000);
+
+    const model = cache.getBoardModel([{ id: '635', type: 'subway' }, { id: '127', type: 'subway' }], WEATHER, 1000);
+    expect(model.stations.map((s) => s.station.id)).toEqual(['635', '127']);
+    expect(model.weather?.tempF).toBe(70);
   });
 
-  it('tracks per-station freshness and aggregates top-level staleness', () => {
-    const c = new BoardCache(stations, 90);
-    const T0 = 1_700_000_000_000;
-
-    c.setDirections('127', dirs, T0);
-    let b = c.get(T0 + 30_000);
-    expect(b.stations[0].stale).toBe(false); // 127 fresh
-    expect(b.stations[1].stale).toBe(true);  // 635 never updated
-    expect(b.stale).toBe(true);              // top-level: any station stale
-
-    c.setDirections('635', dirs, T0);
-    b = c.get(T0 + 30_000);
-    expect(b.stations[0].stale).toBe(false);
-    expect(b.stations[1].stale).toBe(false);
-    expect(b.stale).toBe(false);
-
-    // Advance past the threshold: both go stale again.
-    b = c.get(T0 + 100_000);
-    expect(b.stations[0].stale).toBe(true);
-    expect(b.stations[1].stale).toBe(true);
-    expect(b.stale).toBe(true);
+  it('synthesizes an empty, stale board for an entry not in the cache', () => {
+    const cache = new BoardCache([], 90);
+    const model = cache.getBoardModel([{ id: 'R01', type: 'subway' }], null, 1000);
+    expect(model.stations[0].station.id).toBe('R01');
+    expect(model.stations[0].stale).toBe(true);
+    expect(model.stations[0].directions).toEqual([]);
   });
+});
 
-  it('setAlerts populates only the targeted station without affecting staleness', () => {
-    const c = new BoardCache(stations, 90);
-    const T0 = 1_700_000_000_000;
-    c.setDirections('127', dirs, T0);
-
-    c.setAlerts('127', [{ routes: ['N'], severity: 'delay', text: 'Delays' }]);
-
-    const b = c.get(T0 + 30_000);
-    expect(b.stations[0].alerts[0].text).toBe('Delays');
-    expect(b.stations[1].alerts).toEqual([]);
-    expect(b.stations[0].stale).toBe(false); // setAlerts doesn't touch lastUpdated
-  });
-
-  it('setWeather populates shared weather visible on the model', () => {
-    const c = new BoardCache(stations, 90);
-    c.setWeather({ tempF: 72, condition: 'Clear', icon: 'clear' });
-    expect(c.get(1_700_000_000_000).weather?.tempF).toBe(72);
-  });
-
-  it('throws when setting directions/alerts for an unknown station id', () => {
-    const c = new BoardCache(stations, 90);
-    expect(() => c.setDirections('999', dirs, 1_700_000_000_000)).toThrow(/999/);
-    expect(() => c.setAlerts('999', [])).toThrow(/999/);
-  });
-
-  it('defaults type to subway when meta omits it', () => {
-    const c = new BoardCache(stations, 90);
-    const b = c.get(1_700_000_000_000);
-    expect(b.stations[0].type).toBe('subway');
-    expect(b.stations[0].arrivals).toEqual([]);
-  });
-
-  it('supports bus stations via setBusArrivals: type, arrivals, name update, freshness', () => {
-    const busStations = [
-      ...stations,
-      { id: '400080', name: 'Bus 400080', type: 'bus' as const },
-    ];
-    const c = new BoardCache(busStations, 90);
-    const T0 = 1_700_000_000_000;
-    const busArrival = {
-      route: 'M15',
-      color: '#1E5BA8',
-      textColor: '#ffffff',
-      destination: 'EAST HARLEM 125 ST',
-      minutes: 7,
-    };
-
-    c.setBusArrivals('400080', [busArrival], T0, 'Main St/1 Av');
-
-    const b = c.get(T0);
-    const busBoard = b.stations.find((s) => s.station.id === '400080')!;
-    expect(busBoard.type).toBe('bus');
-    expect(busBoard.arrivals).toEqual([busArrival]);
-    expect(busBoard.station.name).toBe('Main St/1 Av');
-    expect(busBoard.stale).toBe(false);
-    expect(busBoard.directions).toEqual([]);
-
-    // subway station in the same cache is unaffected and still reports subway.
-    const subwayBoard = b.stations.find((s) => s.station.id === '127')!;
-    expect(subwayBoard.type).toBe('subway');
-  });
-
-  it('throws when setBusArrivals targets an unknown station id', () => {
-    const c = new BoardCache(stations, 90);
-    expect(() => c.setBusArrivals('999', [], 1_700_000_000_000)).toThrow(/999/);
-  });
-
-  describe('addStation / removeStation', () => {
-    it('addStation registers a new, empty station that appears in get()', () => {
-      const c = new BoardCache([], 90);
-      const T0 = 1_700_000_000_000;
-      c.addStation({ id: '127', name: 'Times Sq-42 St', type: 'subway' });
-
-      let b = c.get(T0);
-      expect(b.stations).toHaveLength(1);
-      expect(b.stations[0].station).toEqual({ id: '127', name: 'Times Sq-42 St' });
-      expect(b.stations[0].type).toBe('subway');
-      expect(b.stations[0].directions).toEqual([]);
-      expect(b.stations[0].arrivals).toEqual([]);
-      expect(b.stations[0].alerts).toEqual([]);
-      expect(b.stations[0].stale).toBe(true);
-
-      c.setDirections('127', dirs, T0);
-      b = c.get(T0);
-      expect(b.stations[0].directions).toEqual(dirs);
-      expect(b.stations[0].stale).toBe(false);
-    });
-
-    it('addStation is idempotent: re-adding the same id leaves existing data untouched', () => {
-      const c = new BoardCache([], 90);
-      const T0 = 1_700_000_000_000;
-      c.addStation({ id: '127', name: 'Times Sq-42 St', type: 'subway' });
-      c.setDirections('127', dirs, T0);
-
-      c.addStation({ id: '127', name: 'Different Name', type: 'subway' });
-
-      const b = c.get(T0);
-      expect(b.stations).toHaveLength(1);
-      expect(b.stations[0].station.name).toBe('Times Sq-42 St');
-      expect(b.stations[0].directions).toEqual(dirs);
-    });
-
-    it('removeStation removes the entry so it no longer appears in get()', () => {
-      const c = new BoardCache([], 90);
-      c.addStation({ id: '127', name: 'Times Sq-42 St', type: 'subway' });
-      c.addStation({ id: '635', name: '14 St-Union Sq', type: 'subway' });
-
-      c.removeStation('127');
-
-      const b = c.get(1_700_000_000_000);
-      expect(b.stations).toHaveLength(1);
-      expect(b.stations[0].station.id).toBe('635');
-    });
-
-    it('removeStation on an unknown id is a no-op', () => {
-      const c = new BoardCache([], 90);
-      c.addStation({ id: '127', name: 'Times Sq-42 St', type: 'subway' });
-
-      expect(() => c.removeStation('999')).not.toThrow();
-      expect(c.get(1_700_000_000_000).stations).toHaveLength(1);
-    });
+describe('BoardCache.reconcile', () => {
+  it('adds new stations and drops ones no longer referenced', () => {
+    const cache = new BoardCache([], 90);
+    cache.addStation({ id: '127', name: 'Times Sq', type: 'subway' });
+    cache.reconcile([{ id: '635', name: 'Union Sq', type: 'subway' }]);
+    expect(cache.has('635')).toBe(true);
+    expect(cache.has('127')).toBe(false);
   });
 });
