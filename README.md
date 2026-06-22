@@ -9,6 +9,10 @@ clean, dark, glanceable board: live arrival countdowns, service alerts, colored 
 a clock, and current weather. The backend exposes a small renderer-agnostic JSON API, so the
 React board is just one possible front end.
 
+The server is **multi-board**: every visitor gets their own board (a short code in the URL),
+so one deployment can drive your kiosk, your phone, and a friend's display, each with its own
+stations and weather — see [How it's hosted](#how-its-hosted--multi-board).
+
 ![board](docs/board-preview.png)
 
 Click the weather in the top bar to expand a full-width forecast (next 12 hours + 5 days):
@@ -20,7 +24,7 @@ Click the weather in the top bar to expand a full-width forecast (next 12 hours 
 - 🚇 **Live subway arrivals** for any station(s), split into Uptown / Downtown with minute countdowns.
 - 🚌 **Live bus arrivals** (MTA Bus Time) for any stop(s) — a single soonest-first list per stop, with "approaching / N stops away" when there's no ETA.
 - 🏙️ **Multiple stations/stops** at once, rendered as stacked sections.
-- 🔎 **Add stations from the app** — an Edit mode lets you search a station by name and add it (no IDs), then pick from auto-suggested **nearby bus stops**. The list is saved on the server and shared by every display.
+- 🔎 **Add stations from the app** — an Edit mode lets you search a station by name and add it (no IDs), then pick from auto-suggested **nearby bus stops**. The list is saved on the server (per board) and shared by every display that opens that board's URL.
 - ⚠️ **Service alerts** per station, with severity (delay / suspended / info) inferred from the feed. They start minimized (severe alerts + a count summary) and expand on click.
 - 🎨 **Official line bullets** (correct MTA colors) for quick scanning.
 - 🌤️ **Weather + clock** in a shared top bar — a condition icon with the current temp; click it to expand a **full-width forecast** (next 12 hours + next 5 days, with precip chance) styled like the departure tables.
@@ -32,15 +36,39 @@ Click the weather in the top bar to expand a full-width forecast (next 12 hours 
 ## Quick start (Docker)
 
 ```bash
-cp .env.example .env       # set WEATHER_LAT/LON, an optional starting STATION, DISPLAY_MODE
+cp .env.example .env       # optional: set WEATHER_LAT/LON default, ACTIVE_TTL_DAYS, DISPLAY_MODE
 docker compose up -d --build
-# open http://<host-ip>:8080  → click "Edit" to search & add stations
+# open http://<host-ip>:8080
 ```
 
-That's it — one container serves both the JSON API and the built web app. You don't have to
-get the config perfect up front: `STATION`/`BUS_STOPS` just **seed the first run**, and after
-that you manage the board in the app (see [Editing the board](#editing-the-board)). The list is
-persisted in a Docker volume (`mta-data`), so it survives restarts.
+Visiting the server for the first time creates **your own board** and redirects you to its
+URL, `/b/<code>` (a short random code) — a cookie remembers it, so reopening the bare host URL
+on the same device takes you back to the same board. Bookmark or share the `/b/<code>` URL
+directly to come back to it from another device, or use the **🔗 Copy link** button in the
+header. Then click **✎ Edit** to search & add stations (see
+[Editing the board](#editing-the-board)).
+
+That's it — one container serves both the JSON API and the built web app. Board configs are
+stored in **Postgres** (the bundled `db` service), so they survive restarts and are shared by
+every display that opens that board's URL.
+
+## How it's hosted / multi-board
+
+This isn't a single global board — every device that opens the site gets its **own board**,
+identified by the code in `/b/<code>`:
+
+- The first time a device hits `/`, the server mints a code, stores a `board` cookie, and
+  redirects to `/b/<code>`. From then on the cookie brings that device back to the same board.
+- Anyone with the `/b/<code>` URL can view and edit that board — there's no login. Codes are
+  short random strings, not secret-strength, so treat the URL as **unguessable but
+  unauthenticated**: don't rely on it to keep anything private.
+- Each board has its own stations, bus stops, and weather location, all stored in Postgres.
+- A kiosk or e-ink panel just needs to open one specific `/b/<code>` URL (e.g. via the kiosk
+  browser flag below) — it'll keep showing that board on every refresh regardless of cookies.
+- Boards that haven't been opened in a while (`ACTIVE_TTL_DAYS`, default 7) stop being polled
+  in the background to save API calls; opening the URL again resumes polling immediately.
+- If `DATABASE_URL` isn't set, the server falls back to an **in-memory** store — fine for local
+  dev, but boards disappear on restart.
 
 ## Configuration
 
@@ -48,16 +76,16 @@ All configuration is environment variables (see [`.env.example`](.env.example)):
 
 | Variable | Meaning |
 |---|---|
-| `STATION` | **First-run seed** for the board — one or more subway GTFS parent stop ids, comma-separated (e.g. `127,R01`). After first run, edit the board in the app. Can be empty (add everything from the UI). |
-| `BUS_STOPS` | **First-run seed** for bus stops — MTA bus stop code(s), comma-separated. Requires `MTA_API_KEY`. After first run, add buses via the Edit UI's nearby-stop picker. See [Bus stops](#bus-stops). |
+| `DATABASE_URL` | Postgres connection string for board storage (e.g. `postgres://mta:mta@db:5432/mta`). `docker-compose.yml` sets this for the bundled `db` service automatically. If unset, boards are kept in memory only (not persisted). |
+| `ACTIVE_TTL_DAYS` | Boards not opened within this many days stop being polled in the background (default `7`). They still work fine when reopened. |
 | `DISPLAY_MODE` | `kiosk` (large type for a wall display) \| `phone` \| `auto` |
 | `COMPACT` | Default compact view (`true`/`false`) — denser layout, fewer arrivals, severe-only alerts. Overridable per device via `?compact=1`/`?compact=0`. See [Compact view](#compact-view). |
-| `WEATHER_LAT` / `WEATHER_LON` | Weather location (Open-Meteo, no key) |
+| `WEATHER_LAT` / `WEATHER_LON` | **Default** weather location for newly created boards — each board can change its own location afterward via the location picker in Edit mode. |
 | `FEED_REFRESH_SEC` | Arrival feed poll interval (default `30`) |
 | `ALERTS_REFRESH_SEC` | Alerts feed poll interval (default `120` — alerts change slowly) |
 | `WEATHER_REFRESH_SEC` | Weather poll interval (default `600`) |
 | `STALE_THRESHOLD_SEC` | When to flag arrivals as stale (default `90`) |
-| `MTA_API_KEY` | MTA Bus Time API key — required only when `BUS_STOPS` is set (subway needs no key). |
+| `MTA_API_KEY` | MTA Bus Time API key — required only for bus stops (subway needs no key). |
 | `PORT` | HTTP port (default `8080`) |
 
 ### A note on station "complexes"
@@ -72,8 +100,9 @@ example, Times Square is four ids:
 | `902` | 42 St Shuttle (S) |
 | `R16` | N Q R W |
 
-So to show *all* Times Sq trains, set `STATION=127,725,902,R16`. Most stations are a single
-id (e.g. `R01` = Astoria-Ditmars Blvd, J/Z).
+So to show *all* Times Sq trains, add all four ids via the Edit UI's station search. Most
+stations are a single id (e.g. `R01` = Astoria-Ditmars Blvd, J/Z) — see
+[Finding your station id](#finding-your-station-id) if you'd rather look ids up directly.
 
 ## Compact view
 
@@ -98,16 +127,18 @@ Click **✎ Edit** in the top bar. While editing you can:
 - **Search & add a station** — type a station name (no IDs to look up) and click a result to add it. Searching for a station that's **already on the board** just reopens its nearby-bus list, so you can come back later to add more stops.
 - **Add / remove nearby buses** — right after adding a station, a checklist of the **closest bus stops** (with their routes and distance) appears. Click anywhere on a row to toggle it: a green check adds the stop, unchecking removes it. Bus lookups need `MTA_API_KEY`.
 - **Remove** — each section shows an **×** to drop it from the board.
+- **Set the weather location** — search a city/zip or click "Use my location" to set this
+  board's weather, overriding the `WEATHER_LAT`/`WEATHER_LON` default.
 
-Changes are saved on the **server** (`data/board.json`, persisted via the `mta-data` Docker
-volume) and shared by every display — edit from your phone and the kiosk/e-ink panel update on
-their next refresh. Click **✓ Done** to return to the clean board. (`STATION`/`BUS_STOPS` only
-seed the very first run; after that this list is the source of truth.)
+Changes are saved on the **server** in Postgres, keyed to this board's code, and shared by
+every display that opens the same `/b/<code>` URL — edit from your phone and the kiosk/e-ink
+panel update on their next refresh. Click **✓ Done** to return to the clean board. A brand-new
+board starts empty — click **✎ Edit** and search for a station to get going.
 
 ## Finding your station id
 
-You usually don't need this anymore — just use the [Edit UI](#editing-the-board). But if you
-want to seed `STATION` directly: station ids are GTFS parent stop ids. Every station is bundled in
+You usually don't need this anymore — just use the [Edit UI](#editing-the-board) to search by
+name. But if you'd rather look an id up directly: station ids are GTFS parent stop ids. Every station is bundled in
 [`server/src/data/stations.json`](server/src/data/stations.json) (id → name + routes), so you
 can grep it for your stop:
 
@@ -128,7 +159,7 @@ The station data is generated from the MTA's official GTFS **static** feed. To r
    npx tsx scripts/build-stops.ts    /path/to/extracted/gtfs/stops.txt   # -> src/data/stops.json (id -> name, for destinations)
    ```
 
-- **`stations.json`** = every station with its route list; drives which feeds to poll for your `STATION`(s) and alert filtering.
+- **`stations.json`** = every station with its route list; drives the search results in the Edit UI, which feeds to poll for added stations, and alert filtering.
 - **`stops.json`** = complete stop-id → name map, used to label arrival **destinations**.
 
 ## Bus stops
@@ -136,13 +167,9 @@ The station data is generated from the MTA's official GTFS **static** feed. To r
 Buses use **MTA Bus Time** (the SIRI API), which needs a free key:
 
 1. Get a key at <https://bustime.mta.info/wiki/Developers/Index> and set `MTA_API_KEY`.
-2. Find your bus stop's **code** — the 6-digit number printed on the bus-stop pole, or look it
-   up at <https://bustime.mta.info>. Set `BUS_STOPS` to one or more codes, comma-separated.
-
-```bash
-MTA_API_KEY=your-key-here
-BUS_STOPS=401687,404923
-```
+2. Add a subway station via the Edit UI — the **nearby-stop picker** that appears right after
+   shows the closest bus stops (with routes and distance) so you can add them with a click. No
+   need to look up bus stop codes by hand.
 
 Each bus stop renders as its own section: a single soonest-first list of `route → destination →
 minutes` (a bus-stop pole is one direction). When there's no live ETA the row shows the feed's
@@ -152,13 +179,15 @@ feed and show under the stop, just like subway alerts. Bus route badges are roun
 
 ## API
 
-`GET /api/board` returns the full board as JSON (the renderer-agnostic contract). Each entry in
+`GET /api/boards/:code` returns that board as JSON (the renderer-agnostic contract); visiting
+it also registers the board's stations for polling if they aren't cached yet. Each entry in
 `stations` has a `type` of `"subway"` (uses `directions`, split N/S) or `"bus"` (uses a flat
 `arrivals` list); `arrivals[].minutes` is `null` when there's no ETA, with a `note` string
 (e.g. `"approaching"`) instead.
 
 ```jsonc
 {
+  "code": "ab12cd34",
   "updatedAt": "2026-06-21T14:02:11.000Z",
   "stale": false,
   "displayMode": "kiosk",
@@ -189,19 +218,23 @@ feed and show under the stop, just like subway alerts. Bus route badges are roun
 
 `GET /api/health` returns `{ "status": "ok" }` (used by the Docker healthcheck).
 
-Board editing (used by the Edit UI):
+Board editing (used by the Edit UI), all scoped to one board's `:code`:
 
 - `GET /api/stations/search?q=` — subway search → `[{ id, name, routes }]`.
-- `GET /api/nearby-buses?stationId=` — nearby bus stops → `[{ code, name, routes, distanceMeters, alreadyAdded }]`.
-- `POST /api/board/stations` `{ id, type }` — add a subway station or bus stop.
-- `DELETE /api/board/stations` `{ id, type }` — remove one.
+- `GET /api/nearby-buses?stationId=&code=` — nearby bus stops → `[{ code, name, routes, distanceMeters, alreadyAdded }]`.
+- `POST /api/boards/:code/stations` `{ id, type }` — add a subway station or bus stop.
+- `DELETE /api/boards/:code/stations` `{ id, type }` — remove one.
+- `PUT /api/boards/:code/weather` `{ lat, lon }` — set this board's weather location.
+- `GET /api/geocode?q=` — look up a place name → `[{ name, admin1, country, lat, lon }]`, used by the location picker.
 
 ## Kiosk display (HDMI)
 
-Point a fullscreen browser at the board, e.g. on a Pi driving a monitor:
+Point a fullscreen browser at **that device's specific board URL** (visit the bare host once
+to mint one, then use its `/b/<code>` link) so the kiosk always shows the same board regardless
+of cookies, e.g. on a Pi driving a monitor:
 
 ```bash
-chromium-browser --kiosk --noerrdialogs --disable-infobars http://localhost:8080
+chromium-browser --kiosk --noerrdialogs --disable-infobars http://localhost:8080/b/<code>
 ```
 
 ## Architecture
@@ -211,21 +244,23 @@ A single Node process does all the work and the browser just renders small JSON:
 ```text
 ┌──────────────────────── Docker (Node + TypeScript) ─────────────────────────┐
 │  Arrivals poller  ── fetch station feed(s) every ~30s, decode protobuf,      │
-│                       filter to each station (split N/S), cache board model   │
+│                       filter per station (split N/S), cache board model       │
 │  Alerts poller    ── fetch the alerts feed every ~120s, filter per station   │
 │  Bus poller       ── SIRI StopMonitoring per bus stop (~30s): arrivals+alerts │
-│  Weather service  ── fetch Open-Meteo every ~10 min                          │
-│  Express          ── GET /api/board (JSON contract) + GET /api/health        │
+│  Weather service  ── fetch Open-Meteo per board location every ~10 min       │
+│  Postgres         ── stores each board's code, stations, weather location    │
+│  Express          ── GET /api/boards/:code (JSON contract) + /api/health     │
 │                      + serves the built React app                            │
 └──────────────────────────────────────────────────────────────────────────────┘
-        ▲ browser (kiosk fullscreen or phone) polls /api/board every ~10s
+        ▲ browser (kiosk fullscreen or phone) polls /api/boards/:code every ~10s
 ```
 
-- Feeds are fetched **once per cycle** and fanned out to every configured station (no
-  duplicate fetches when stations share lines). All fetches have timeouts and per-feed
-  isolation; a single bad feed never blanks the board.
-- `/api/board` is a pure cache read — no per-request work — and is the contract a future
-  renderer (e.g. an LED/e-ink display) could consume instead of the web app.
+- Feeds are fetched **once per cycle** and fanned out to every *active* board's stations (no
+  duplicate fetches when boards share stations/lines). All fetches have timeouts and per-feed
+  isolation; a single bad feed never blanks a board.
+- `/api/boards/:code` is mostly a cache read — the contract a future renderer (e.g. an LED/e-ink
+  display) could consume instead of the web app — though the first request for a newly-added
+  station registers it for polling.
 
 See [`docs/superpowers/specs/`](docs/superpowers/specs/) and
 [`docs/superpowers/plans/`](docs/superpowers/plans/) for the original design + implementation plan.

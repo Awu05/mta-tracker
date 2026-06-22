@@ -11,8 +11,26 @@ services:
       - "8080:8080"
     env_file:
       - .env
+    environment:
+      DATABASE_URL: postgres://mta:mta@db:5432/mta
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mta
+      POSTGRES_PASSWORD: mta
+      POSTGRES_DB: mta
     volumes:
-      - mta-data:/app/data
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
-  mta-data:
+  pgdata:
