@@ -11,6 +11,7 @@ interface Props {
   onToggleEdit: () => void;
   forecastOpen?: boolean;
   onToggleForecast?: () => void;
+  boardCode?: string;
 }
 
 export function Header({
@@ -22,6 +23,7 @@ export function Header({
   onToggleEdit,
   forecastOpen = true,
   onToggleForecast = () => {},
+  boardCode,
 }: Props) {
   return (
     <div className="board-top">
@@ -47,6 +49,15 @@ export function Header({
           title={editMode ? 'Done editing' : 'Edit stations'}
         >
           {editMode ? '✓ Done' : '✎ Edit'}
+        </button>
+        <button
+          type="button"
+          className="view-toggle"
+          onClick={() => { void navigator.clipboard?.writeText(window.location.href); }}
+          title="Copy this board's link"
+          aria-label="Copy board link"
+        >
+          🔗 Copy link
         </button>
       </div>
       <div className="meta">

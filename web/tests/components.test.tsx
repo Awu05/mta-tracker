@@ -235,14 +235,14 @@ describe('components', () => {
       if (typeof url === 'string' && url.startsWith('/api/nearby-buses')) {
         return Promise.resolve({ ok: true, json: async () => [] });
       }
-      if (typeof url === 'string' && url.startsWith('/api/board/stations') && init?.method === 'POST') {
+      if (typeof url === 'string' && url.startsWith('/api/boards/c1/stations') && init?.method === 'POST') {
         return Promise.resolve({ ok: true, status: 201, json: async () => ({ ok: true, entries: [] }) });
       }
       return Promise.resolve({ ok: true, json: async () => [] });
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<EditPanel onChanged={onChanged} />);
+    render(<EditPanel code="c1" onChanged={onChanged} />);
 
     const input = screen.getByPlaceholderText(/search/i);
     fireEvent.change(input, { target: { value: 'union' } });
@@ -253,10 +253,34 @@ describe('components', () => {
 
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     const postCall = fetchMock.mock.calls.find(
-      ([url, init]) => typeof url === 'string' && url.startsWith('/api/board/stations') && init?.method === 'POST'
+      ([url, init]) => typeof url === 'string' && url.startsWith('/api/boards/c1/stations') && init?.method === 'POST'
     );
     expect(postCall).toBeTruthy();
     const body = JSON.parse((postCall![1] as RequestInit).body as string);
     expect(body).toEqual({ id: '635', type: 'subway' });
+  });
+
+  it('EditPanel sets weather from a geocode search result', async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.startsWith('/api/geocode')) {
+        return Promise.resolve({ ok: true, json: async () => ([{ name: 'Brooklyn', admin1: 'NY', country: 'US', lat: 40.68, lon: -73.94 }]) });
+      }
+      if (url.includes('/weather') && init?.method === 'PUT') {
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<EditPanel code="c1" onChanged={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText(/city or zip/i), { target: { value: 'brooklyn' } });
+    await waitFor(() => expect(screen.getByText(/Brooklyn/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Brooklyn/));
+
+    await waitFor(() => {
+      const put = fetchMock.mock.calls.find(([u, i]) => typeof u === 'string' && u.includes('/weather') && i?.method === 'PUT');
+      expect(put).toBeTruthy();
+      expect(JSON.parse((put![1] as RequestInit).body as string)).toEqual({ lat: 40.68, lon: -73.94 });
+    });
   });
 });

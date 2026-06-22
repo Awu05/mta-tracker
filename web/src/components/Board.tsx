@@ -22,7 +22,7 @@ export function Board({
   onToggleEdit: () => void;
   onRemove: (entry: { id: string; type: 'subway' | 'bus' }) => void;
   onChanged: () => void;
-  boardCode?: string;
+  boardCode: string;
 }) {
   const [forecastOpen, setForecastOpen] = useState(true);
 
@@ -37,8 +37,9 @@ export function Board({
         onToggleEdit={onToggleEdit}
         forecastOpen={forecastOpen}
         onToggleForecast={() => setForecastOpen((o) => !o)}
+        boardCode={boardCode}
       />
-      {editMode && <EditPanel onChanged={onChanged} />}
+      {editMode && <EditPanel code={boardCode} onChanged={onChanged} />}
       {board.weather && <Forecast weather={board.weather} open={forecastOpen} />}
       {board.stations.map((s) => (
         <StationSection key={s.station.id} board={s} compact={compact} editMode={editMode} onRemove={onRemove} />

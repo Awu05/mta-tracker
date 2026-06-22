@@ -251,3 +251,8 @@ body {
 .fc-lo { color: var(--muted); }
 .fc-day .fc-precip { color: #5bb8ff; font-size: 12px; min-width: 40px; text-align: right; }
 
+.edit-section { margin-top: 16px; border-top: 1px solid var(--divider); padding-top: 12px; }
+.edit-section-title { font-size: 13px; color: var(--dim); margin-bottom: 8px; }
+.weather-loc-row { display: flex; gap: 8px; align-items: center; }
+.weather-loc-row .search-box { flex: 1; }
+
