@@ -61,4 +61,5 @@ export interface Board {
   stations: StationBoard[];
   displayMode: 'kiosk' | 'phone' | 'auto';
   compact: boolean;
+  code: string;
 }

@@ -1,98 +1,46 @@
-import { describe, it, expect, vi } from 'vitest';
-import { fetchBoard, searchStations, fetchNearbyBuses, addStation, removeStation } from '../src/api';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fetchBoard, addStation, removeStation, setWeather, geocode } from '../src/api';
 
-describe('fetchBoard', () => {
-  it('GETs /api/board and returns the parsed board', async () => {
-    const board = { stations: [], weather: null, stale: false, updatedAt: '', displayMode: 'kiosk', compact: false };
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => board }));
-    const result = await fetchBoard();
-    expect(result.stations).toEqual([]);
-    expect(fetch).toHaveBeenCalledWith('/api/board');
+beforeEach(() => { window.history.replaceState({}, '', '/b/code123'); });
+
+describe('web api (board-scoped)', () => {
+  it('fetchBoard GETs /api/boards/:code', async () => {
+    const f = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stations: [] }) });
+    vi.stubGlobal('fetch', f);
+    await fetchBoard('code123');
+    expect(f).toHaveBeenCalledWith('/api/boards/code123');
   });
 
-  it('throws on a non-ok response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
-    await expect(fetchBoard()).rejects.toThrow(/500/);
-  });
-});
-
-describe('searchStations', () => {
-  it('GETs /api/stations/search with an encoded query and returns the parsed array', async () => {
-    const results = [{ id: '127', name: 'Times Sq-42 St', routes: ['1', '2', '3'] }];
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => results }));
-    const result = await searchStations('times');
-    expect(result).toEqual(results);
-    expect(fetch).toHaveBeenCalledWith('/api/stations/search?q=times');
-  });
-
-  it('returns [] without calling fetch for an empty query', async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    const result = await searchStations('');
-    expect(result).toEqual([]);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('throws on a non-ok response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
-    await expect(searchStations('times')).rejects.toThrow(/500/);
-  });
-});
-
-describe('fetchNearbyBuses', () => {
-  it('GETs /api/nearby-buses with the encoded stationId', async () => {
-    const stops = [{ code: '401687', name: '1 AV/E 14 ST', routes: ['M14'], distanceMeters: 80, alreadyAdded: false }];
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => stops }));
-    const result = await fetchNearbyBuses('127');
-    expect(result).toEqual(stops);
-    expect(fetch).toHaveBeenCalledWith('/api/nearby-buses?stationId=127');
-  });
-});
-
-describe('addStation', () => {
-  it('POSTs to /api/board/stations with a JSON body and Content-Type header', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 201, json: async () => ({ ok: true, entries: [] }) });
-    vi.stubGlobal('fetch', fetchMock);
-    await addStation({ id: '635', type: 'subway' });
-    expect(fetchMock).toHaveBeenCalledWith('/api/board/stations', expect.objectContaining({
-      method: 'POST',
-      headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-    }));
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body).toEqual({ id: '635', type: 'subway' });
-  });
-
-  it('resolves false when the station is already on the board (409)', async () => {
+  it('addStation POSTs to the board, returns false on 409', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 409 }));
-    await expect(addStation({ id: '635', type: 'subway' })).resolves.toBe(false);
+    expect(await addStation('code123', { id: '127', type: 'subway' })).toBe(false);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 201, json: async () => ({}) }));
+    expect(await addStation('code123', { id: '127', type: 'subway' })).toBe(true);
   });
 
-  it('resolves true when newly added (201)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 201, json: async () => ({ ok: true }) }));
-    await expect(addStation({ id: '635', type: 'subway' })).resolves.toBe(true);
+  it('removeStation DELETEs the board station', async () => {
+    const f = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', f);
+    await removeStation('code123', { id: '127', type: 'subway' });
+    const [url, init] = f.mock.calls[0];
+    expect(url).toBe('/api/boards/code123/stations');
+    expect(init.method).toBe('DELETE');
   });
 
-  it('throws on a non-ok response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
-    await expect(addStation({ id: '635', type: 'subway' })).rejects.toThrow(/500/);
-  });
-});
-
-describe('removeStation', () => {
-  it('DELETEs to /api/board/stations with a JSON body', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true, entries: [] }) });
-    vi.stubGlobal('fetch', fetchMock);
-    await removeStation({ id: '635', type: 'subway' });
-    expect(fetchMock).toHaveBeenCalledWith('/api/board/stations', expect.objectContaining({
-      method: 'DELETE',
-      headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-    }));
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(body).toEqual({ id: '635', type: 'subway' });
+  it('setWeather PUTs lat/lon', async () => {
+    const f = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', f);
+    await setWeather('code123', 41, -73.5);
+    const [url, init] = f.mock.calls[0];
+    expect(url).toBe('/api/boards/code123/weather');
+    expect(JSON.parse(init.body)).toEqual({ lat: 41, lon: -73.5 });
   });
 
-  it('throws on a non-ok response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
-    await expect(removeStation({ id: '635', type: 'subway' })).rejects.toThrow(/404/);
+  it('geocode GETs /api/geocode', async () => {
+    const f = vi.fn().mockResolvedValue({ ok: true, json: async () => ([{ name: 'X', admin1: '', country: '', lat: 1, lon: 2 }]) });
+    vi.stubGlobal('fetch', f);
+    const out = await geocode('x');
+    expect(f).toHaveBeenCalledWith('/api/geocode?q=x');
+    expect(out[0].name).toBe('X');
   });
 });

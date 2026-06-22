@@ -14,8 +14,9 @@ const board = {
 };
 
 beforeEach(() => {
+  window.history.replaceState({}, '', '/b/testcode');
   vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
-    if (typeof url === 'string' && url.startsWith('/api/board')) {
+    if (typeof url === 'string' && url.startsWith('/api/boards/')) {
       return Promise.resolve({ ok: true, json: async () => board });
     }
     return Promise.resolve({ ok: true, json: async () => [] });
@@ -60,7 +61,7 @@ describe('App', () => {
   });
 
   it('URL ?compact=1 overrides a non-compact server flag', async () => {
-    window.history.replaceState({}, '', '/?compact=1');
+    window.history.replaceState({}, '', '/b/testcode?compact=1');
     render(<App />);
     await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
     expect(document.querySelector('.app.compact')).toBeInTheDocument();
@@ -69,7 +70,7 @@ describe('App', () => {
   it('URL ?compact=0 overrides a compact server flag', async () => {
     const compactBoard = { ...board, compact: true };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => compactBoard }));
-    window.history.replaceState({}, '', '/?compact=0');
+    window.history.replaceState({}, '', '/b/testcode?compact=0');
     render(<App />);
     await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
     expect(document.querySelector('.app.compact')).not.toBeInTheDocument();

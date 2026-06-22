@@ -13,6 +13,7 @@ export function Board({
   onToggleEdit,
   onRemove,
   onChanged,
+  boardCode,
 }: {
   board: BoardData;
   compact: boolean;
@@ -21,6 +22,7 @@ export function Board({
   onToggleEdit: () => void;
   onRemove: (entry: { id: string; type: 'subway' | 'bus' }) => void;
   onChanged: () => void;
+  boardCode?: string;
 }) {
   const [forecastOpen, setForecastOpen] = useState(true);
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as BoardData } from './types';
-import { fetchBoard, removeStation } from './api';
+import { fetchBoard, removeStation, getBoardCode } from './api';
 import { Board } from './components/Board';
 
 const POLL_MS = 10_000;
@@ -20,10 +20,11 @@ export default function App() {
   const [editMode, setEditMode] = useState(false);
   const timer = useRef<number | null>(null);
   const active = useRef(true);
+  const code = useRef(getBoardCode());
 
   const reload = useCallback(async () => {
     try {
-      const data = await fetchBoard();
+      const data = await fetchBoard(code.current);
       if (active.current) { setBoard(data); setError(false); }
     } catch {
       if (active.current) setError(true); // keep last board on screen
@@ -56,7 +57,7 @@ export default function App() {
   }
 
   async function onRemove(entry: { id: string; type: 'subway' | 'bus' }) {
-    await removeStation(entry);
+    await removeStation(code.current, entry);
     await reload();
   }
 
@@ -70,6 +71,7 @@ export default function App() {
         onToggleEdit={toggleEdit}
         onRemove={onRemove}
         onChanged={reload}
+        boardCode={code.current}
       />
     </div>
   );

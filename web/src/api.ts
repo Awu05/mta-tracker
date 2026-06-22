@@ -1,13 +1,23 @@
 import type { Board } from './types';
 
-export async function fetchBoard(): Promise<Board> {
-  const res = await fetch('/api/board');
+export interface SearchResult { id: string; name: string; routes: string[] }
+export interface NearbyStop { code: string; name: string; routes: string[]; distanceMeters: number; alreadyAdded: boolean }
+export interface GeoResult { name: string; admin1: string; country: string; lat: number; lon: number }
+
+// Read the board code from /b/:code; in dev (or a bare load) mint one and update the URL.
+export function getBoardCode(): string {
+  const m = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]+)/);
+  if (m) return m[1];
+  const code = Math.random().toString(36).slice(2, 10);
+  window.history.replaceState(null, '', `/b/${code}`);
+  return code;
+}
+
+export async function fetchBoard(code: string): Promise<Board> {
+  const res = await fetch(`/api/boards/${code}`);
   if (!res.ok) throw new Error(`Board fetch failed: ${res.status}`);
   return (await res.json()) as Board;
 }
-
-export interface SearchResult { id: string; name: string; routes: string[]; }
-export interface NearbyStop { code: string; name: string; routes: string[]; distanceMeters: number; alreadyAdded: boolean; }
 
 export async function searchStations(q: string): Promise<SearchResult[]> {
   if (!q) return [];
@@ -16,29 +26,37 @@ export async function searchStations(q: string): Promise<SearchResult[]> {
   return (await res.json()) as SearchResult[];
 }
 
-export async function fetchNearbyBuses(stationId: string): Promise<NearbyStop[]> {
-  const res = await fetch(`/api/nearby-buses?stationId=${encodeURIComponent(stationId)}`);
+export async function fetchNearbyBuses(code: string, stationId: string): Promise<NearbyStop[]> {
+  const res = await fetch(`/api/nearby-buses?stationId=${encodeURIComponent(stationId)}&code=${encodeURIComponent(code)}`);
   if (!res.ok) throw new Error(`Nearby buses fetch failed: ${res.status}`);
   return (await res.json()) as NearbyStop[];
 }
 
-// Returns true if newly added, false if it was already on the board (HTTP 409).
-export async function addStation(entry: { id: string; type: 'subway' | 'bus' }): Promise<boolean> {
-  const res = await fetch('/api/board/stations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(entry),
+export async function addStation(code: string, entry: { id: string; type: 'subway' | 'bus' }): Promise<boolean> {
+  const res = await fetch(`/api/boards/${code}/stations`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry),
   });
   if (res.status === 409) return false;
   if (!res.ok) throw new Error(`Add station failed: ${res.status}`);
   return true;
 }
 
-export async function removeStation(entry: { id: string; type: 'subway' | 'bus' }): Promise<void> {
-  const res = await fetch('/api/board/stations', {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(entry),
+export async function removeStation(code: string, entry: { id: string; type: 'subway' | 'bus' }): Promise<void> {
+  const res = await fetch(`/api/boards/${code}/stations`, {
+    method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry),
   });
   if (!res.ok) throw new Error(`Remove station failed: ${res.status}`);
+}
+
+export async function setWeather(code: string, lat: number, lon: number): Promise<void> {
+  const res = await fetch(`/api/boards/${code}/weather`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lat, lon }),
+  });
+  if (!res.ok) throw new Error(`Set weather failed: ${res.status}`);
+}
+
+export async function geocode(q: string): Promise<GeoResult[]> {
+  const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+  if (!res.ok) throw new Error(`Geocode failed: ${res.status}`);
+  return (await res.json()) as GeoResult[];
 }
