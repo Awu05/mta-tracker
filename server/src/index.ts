@@ -2,129 +2,149 @@ import path from 'node:path';
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
 import { loadConfig } from './config';
 import { BoardCache } from './cache';
-import { BoardStore } from './boardStore';
+import { WeatherCache } from './weatherCache';
 import { createApp } from './api';
 import { pollArrivals, pollAlerts, type DecodeFn } from './feeds/poller';
 import { pollBusStops } from './feeds/bus';
 import { getStation } from './staticGtfs';
 import { fetchWeather } from './weather';
-import type { BoardEntry } from './types';
+import { buildPollPlan } from './boards/pollPlan';
+import { MemoryBoardsRepo } from './boards/memoryRepo';
+import { createPgRepo } from './boards/pgRepo';
+import type { BoardsRepo } from './boards/repo';
+import type { StationMeta } from './cache';
 
-const config = loadConfig();
+async function main() {
+  const config = loadConfig();
+  const cache = new BoardCache([], config.staleThresholdSec);
+  const weatherCache = new WeatherCache();
+  const defaults = { lat: config.weatherLat, lon: config.weatherLon };
 
-const cache = new BoardCache([], config.staleThresholdSec);
+  const repo: BoardsRepo = config.databaseUrl
+    ? await createPgRepo(config.databaseUrl)
+    : new MemoryBoardsRepo();
+  if (!config.databaseUrl) {
+    console.warn('[index] DATABASE_URL not set — using in-memory board store (not persisted)');
+  }
 
-const seed: BoardEntry[] = [
-  ...config.stations.map((id) => ({ id, type: 'subway' as const })),
-  ...config.busStops.map((id) => ({ id, type: 'bus' as const })),
-];
+  const decode: DecodeFn = (bytes) =>
+    GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(bytes) as { entity?: unknown[] };
 
-const store = new BoardStore(cache, config.dataDir);
-store.init(seed);
+  // Build the union poll plan from active boards and reconcile the shared cache.
+  async function plan() {
+    const boards = await repo.activeBoards(config.activeTtlMs);
+    return buildPollPlan(boards);
+  }
 
-const decode: DecodeFn = (bytes) =>
-  GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(bytes) as { entity?: unknown[] };
-
-let arrivalsInFlight = false;
-async function pollArrivalsCycle() {
-  if (arrivalsInFlight) return;
-  arrivalsInFlight = true;
-  try {
-    const stations = store.subwayEntries().map((e) => {
-      const info = getStation(e.id);
-      return { id: e.id, name: info.name, routes: info.routes };
+  function subwayMetas(ids: string[]): StationMeta[] {
+    return ids.flatMap((id) => {
+      try {
+        const info = getStation(id);
+        return [{ id, name: info.name, type: 'subway' as const }];
+      } catch {
+        return [];
+      }
     });
-    await pollArrivals(cache, stations, decode);
-  } catch (err) {
-    console.error('[index] arrivals poll cycle error:', err);
-  } finally {
-    arrivalsInFlight = false;
   }
-}
 
-let alertsInFlight = false;
-async function pollAlertsCycle() {
-  if (alertsInFlight) return;
-  alertsInFlight = true;
-  try {
-    const stations = store.subwayEntries().map((e) => {
-      const info = getStation(e.id);
-      return { id: e.id, name: info.name, routes: info.routes };
-    });
-    await pollAlerts(cache, stations, decode);
-  } catch (err) {
-    console.error('[index] alerts poll cycle error:', err);
-  } finally {
-    alertsInFlight = false;
+  let arrivalsInFlight = false;
+  async function pollArrivalsCycle() {
+    if (arrivalsInFlight) return;
+    arrivalsInFlight = true;
+    try {
+      const p = await plan();
+      const subway = subwayMetas(p.subwayIds);
+      const bus: StationMeta[] = p.busCodes.map((id) => ({ id, name: id, type: 'bus' as const }));
+      cache.reconcile([...subway, ...bus]);
+      const stations = subway.map((m) => ({ id: m.id, name: m.name, routes: getStation(m.id).routes }));
+      await pollArrivals(cache, stations, decode);
+    } catch (err) {
+      console.error('[index] arrivals poll cycle error:', err);
+    } finally {
+      arrivalsInFlight = false;
+    }
   }
-}
 
-let busInFlight = false;
-async function pollBusCycle() {
-  if (busInFlight) return;
-  busInFlight = true;
-  try {
-    const codes = store.busEntries().map((e) => e.id);
-    await pollBusStops(cache, codes, config.mtaApiKey);
-  } catch (err) {
-    console.error('[index] bus poll cycle error:', err);
-  } finally {
-    busInFlight = false;
+  let alertsInFlight = false;
+  async function pollAlertsCycle() {
+    if (alertsInFlight) return;
+    alertsInFlight = true;
+    try {
+      const p = await plan();
+      const stations = subwayMetas(p.subwayIds).map((m) => ({ id: m.id, name: m.name, routes: getStation(m.id).routes }));
+      await pollAlerts(cache, stations, decode);
+    } catch (err) {
+      console.error('[index] alerts poll cycle error:', err);
+    } finally {
+      alertsInFlight = false;
+    }
   }
-}
 
-let weatherInFlight = false;
-async function pollWeatherCycle() {
-  if (weatherInFlight) return;
-  weatherInFlight = true;
-  try {
-    cache.setWeather(await fetchWeather(config.weatherLat, config.weatherLon));
-  } catch (err) {
-    console.error('[index] weather error:', err);
-  } finally {
-    weatherInFlight = false;
+  let busInFlight = false;
+  async function pollBusCycle() {
+    if (busInFlight) return;
+    busInFlight = true;
+    try {
+      const p = await plan();
+      await pollBusStops(cache, p.busCodes, config.mtaApiKey);
+    } catch (err) {
+      console.error('[index] bus poll cycle error:', err);
+    } finally {
+      busInFlight = false;
+    }
   }
-}
 
-// Static dir: built web app copied next to dist in the Docker image.
-const staticDir = path.resolve(__dirname, '../public');
+  let weatherInFlight = false;
+  async function pollWeatherCycle() {
+    if (weatherInFlight) return;
+    weatherInFlight = true;
+    try {
+      const p = await plan();
+      const locations = p.locations.length > 0 ? p.locations : [defaults];
+      await Promise.all(
+        locations.map(async (loc) => {
+          try {
+            weatherCache.set(loc.lat, loc.lon, await fetchWeather(loc.lat, loc.lon));
+          } catch (err) {
+            console.error('[index] weather error for', loc, err);
+          }
+        }),
+      );
+    } catch (err) {
+      console.error('[index] weather poll cycle error:', err);
+    } finally {
+      weatherInFlight = false;
+    }
+  }
 
-function onBoardChange(entry?: BoardEntry) {
-  if (entry?.type === 'bus') {
+  const staticDir = path.resolve(__dirname, '../public');
+
+  function onBoardChange(entry?: { id: string; type: 'subway' | 'bus' }) {
+    if (entry?.type === 'bus') void pollBusCycle();
+    else { void pollArrivalsCycle(); void pollAlertsCycle(); }
+  }
+
+  const app = createApp({
+    cache, repo, weatherCache,
+    defaultLat: config.weatherLat, defaultLon: config.weatherLon,
+    displayMode: config.displayMode, compact: config.compact,
+    mtaApiKey: config.mtaApiKey, onBoardChange, staticDir,
+  });
+
+  void pollArrivalsCycle();
+  void pollAlertsCycle();
+  void pollWeatherCycle();
+  setInterval(pollArrivalsCycle, config.feedRefreshSec * 1000);
+  setInterval(pollAlertsCycle, config.alertsRefreshSec * 1000);
+  setInterval(pollWeatherCycle, config.weatherRefreshSec * 1000);
+  if (config.mtaApiKey !== '') {
     void pollBusCycle();
-  } else {
-    void pollArrivalsCycle();
-    void pollAlertsCycle();
+    setInterval(pollBusCycle, config.feedRefreshSec * 1000);
   }
+
+  app.listen(config.port, () => {
+    console.log(`MTA tracker listening on :${config.port} (store=${config.databaseUrl ? 'postgres' : 'memory'})`);
+  });
 }
 
-const app = createApp({
-  cache,
-  store,
-  displayMode: config.displayMode,
-  compact: config.compact,
-  mtaApiKey: config.mtaApiKey,
-  onBoardChange,
-  staticDir,
-});
-
-void pollArrivalsCycle();
-void pollAlertsCycle();
-void pollWeatherCycle();
-setInterval(pollArrivalsCycle, config.feedRefreshSec * 1000);
-setInterval(pollAlertsCycle, config.alertsRefreshSec * 1000);
-setInterval(pollWeatherCycle, config.weatherRefreshSec * 1000);
-
-if (config.mtaApiKey !== '') {
-  // Started whenever a key is present; pollBusStops no-ops on an empty code list,
-  // so bus stops added later (via the store) are picked up on the next tick.
-  void pollBusCycle();
-  setInterval(pollBusCycle, config.feedRefreshSec * 1000);
-}
-
-app.listen(config.port, () => {
-  const entries = store.entries();
-  console.log(
-    `MTA tracker listening on :${config.port} (loaded ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} from store: ${store.subwayEntries().length} subway, ${store.busEntries().length} bus; dataDir=${config.dataDir})`,
-  );
-});
+void main();

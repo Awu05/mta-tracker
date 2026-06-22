@@ -30,7 +30,7 @@ describe('pollArrivals', () => {
 
     await pollArrivals(cache, [station], decode, fakeFetch, () => NOW);
 
-    const board = cache.get(NOW).stations[0];
+    const board = cache.getBoardModel([{ id: '127', type: 'subway' }], null, NOW).stations[0];
     expect(board.stale).toBe(false);
     expect(board.directions.find((d) => d.direction === 'N')!.arrivals[0].minutes).toBe(2);
   });
@@ -49,7 +49,7 @@ describe('pollArrivals', () => {
 
     await pollArrivals(cache, [station], decode, fakeFetch, () => NOW);
 
-    const board = cache.get(NOW).stations[0];
+    const board = cache.getBoardModel([{ id: '127', type: 'subway' }], null, NOW).stations[0];
     expect(board.stale).toBe(false); // still updated from surviving feeds
     expect(board.directions.find((d) => d.direction === 'S')!.arrivals.length).toBeGreaterThan(0);
   });
@@ -62,7 +62,7 @@ describe('pollArrivals', () => {
 
     await pollArrivals(cache, [station], decode, fakeFetch, () => NOW);
 
-    const board = cache.get(NOW).stations[0];
+    const board = cache.getBoardModel([{ id: '127', type: 'subway' }], null, NOW).stations[0];
     expect(board.stale).toBe(true); // never updated, so still stale
     expect(board.directions).toEqual([]);
   });
@@ -97,7 +97,11 @@ describe('pollArrivals', () => {
 
     expect(fakeFetch).toHaveBeenCalledTimes(2); // each underlying feed fetched only once
 
-    const board = cache.get(NOW);
+    const board = cache.getBoardModel(
+      [{ id: '127', type: 'subway' }, { id: '635', type: 'subway' }],
+      null,
+      NOW,
+    );
     expect(board.stations[0].directions.find((d) => d.direction === 'N')!.arrivals.length).toBeGreaterThan(0);
     expect(board.stations[1].directions.find((d) => d.direction === 'S')!.arrivals.length).toBeGreaterThan(0);
   });
@@ -120,7 +124,7 @@ describe('pollAlerts', () => {
 
     await pollAlerts(cache, [station], decode, fakeFetch);
 
-    const board = cache.get(1_700_000_000_000);
+    const board = cache.getBoardModel([{ id: '127', type: 'subway' }], null, 1_700_000_000_000);
     expect(board.stations[0].alerts[0].text).toBe('Delays');
   });
 
@@ -139,13 +143,13 @@ describe('pollAlerts', () => {
 
     // Seed alerts with a first successful poll.
     await pollAlerts(cache, [station], decode, okFetch);
-    expect(cache.get(1_700_000_000_000).stations[0].alerts[0].text).toBe('Delays');
+    expect(cache.getBoardModel([{ id: '127', type: 'subway' }], null, 1_700_000_000_000).stations[0].alerts[0].text).toBe('Delays');
 
     // Second poll: fetch rejects, alerts should remain unchanged.
     const failingFetch = vi.fn().mockRejectedValue(new Error('alerts down')) as unknown as typeof fetch;
     await pollAlerts(cache, [station], decode, failingFetch);
 
-    const board = cache.get(1_700_000_000_000);
+    const board = cache.getBoardModel([{ id: '127', type: 'subway' }], null, 1_700_000_000_000);
     expect(board.stations[0].alerts[0].text).toBe('Delays'); // unchanged, not cleared
   });
 });
