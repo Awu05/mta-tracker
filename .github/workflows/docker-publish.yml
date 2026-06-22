@@ -34,9 +34,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          # Pi Zero 2 W is arm64. Add ,linux/arm/v7 here for 32-bit hosts too
-          # (roughly doubles build time under emulation).
-          platforms: linux/arm64
+          # arm64 (e.g. Pi Zero 2 W on 64-bit OS) + arm/v7 (32-bit ARM hosts).
+          # Both legs build under emulation, so this roughly doubles build time.
+          platforms: linux/arm64,linux/arm/v7
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/mta-tracker:latest
