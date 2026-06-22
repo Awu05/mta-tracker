@@ -62,8 +62,6 @@ export interface BoardModel {
 }
 
 export interface AppConfig {
-  stations: string[];
-  busStops: string[];
   displayMode: 'kiosk' | 'phone' | 'auto';
   weatherLat: number;
   weatherLon: number;
@@ -74,7 +72,15 @@ export interface AppConfig {
   mtaApiKey: string;
   port: number;
   compact: boolean;
-  dataDir: string;
+  databaseUrl: string;
+  activeTtlMs: number;
 }
 
 export interface BoardEntry { id: string; type: 'subway' | 'bus'; }
+
+export interface Board {
+  code: string;
+  entries: BoardEntry[];
+  weatherLat: number;
+  weatherLon: number;
+}

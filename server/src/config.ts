@@ -1,4 +1,3 @@
-import path from 'node:path';
 import type { AppConfig } from './types';
 
 type Env = Record<string, string | undefined>;
@@ -18,32 +17,12 @@ function bool(env: Env, key: string, def: boolean): boolean {
 }
 
 export function loadConfig(env: Env = process.env): AppConfig {
-  const stations = (env.STATION ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-  if (stations.length === 0) {
-    throw new Error('Missing required env STATION (comma-separated list of station stop ids)');
-  }
-
-  const busStops = (env.BUS_STOPS ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-
-  const mtaApiKey = env.MTA_API_KEY ?? '';
-  if (busStops.length > 0 && mtaApiKey === '') {
-    throw new Error('BUS_STOPS is set but MTA_API_KEY is missing (bus tracking requires MTA_API_KEY)');
-  }
-
   const displayMode = (env.DISPLAY_MODE ?? 'auto') as AppConfig['displayMode'];
   if (!['kiosk', 'phone', 'auto'].includes(displayMode)) {
     throw new Error(`Invalid DISPLAY_MODE: ${displayMode} (expected kiosk|phone|auto)`);
   }
 
   return {
-    stations,
-    busStops,
     displayMode,
     weatherLat: num(env, 'WEATHER_LAT', 40.7128),
     weatherLon: num(env, 'WEATHER_LON', -74.006),
@@ -51,9 +30,10 @@ export function loadConfig(env: Env = process.env): AppConfig {
     alertsRefreshSec: num(env, 'ALERTS_REFRESH_SEC', 120),
     weatherRefreshSec: num(env, 'WEATHER_REFRESH_SEC', 600),
     staleThresholdSec: num(env, 'STALE_THRESHOLD_SEC', 90),
-    mtaApiKey,
+    mtaApiKey: env.MTA_API_KEY ?? '',
     port: num(env, 'PORT', 8080),
     compact: bool(env, 'COMPACT', false),
-    dataDir: env.DATA_DIR && env.DATA_DIR.trim() !== '' ? env.DATA_DIR : path.resolve(process.cwd(), 'data'),
+    databaseUrl: env.DATABASE_URL ?? '',
+    activeTtlMs: num(env, 'ACTIVE_TTL_DAYS', 7) * 24 * 60 * 60 * 1000,
   };
 }

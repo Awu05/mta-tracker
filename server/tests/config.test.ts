@@ -1,70 +1,25 @@
-import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { loadConfig } from '../src/config';
 
 describe('loadConfig', () => {
-  it('parses a complete env with defaults applied', () => {
-    const cfg = loadConfig({ STATION: '127', WEATHER_LAT: '40.75', WEATHER_LON: '-73.98' });
-    expect(cfg.stations).toEqual(['127']);
-    expect(cfg.displayMode).toBe('auto');
-    expect(cfg.weatherLat).toBe(40.75);
-    expect(cfg.feedRefreshSec).toBe(30);
-    expect(cfg.alertsRefreshSec).toBe(120);
-    expect(cfg.port).toBe(8080);
-    expect(cfg.compact).toBe(false);
+  it('applies defaults with an empty environment', () => {
+    const c = loadConfig({});
+    expect(c.displayMode).toBe('auto');
+    expect(c.port).toBe(8080);
+    expect(c.weatherLat).toBeCloseTo(40.7128);
+    expect(c.databaseUrl).toBe('');
+    expect(c.activeTtlMs).toBe(7 * 24 * 60 * 60 * 1000);
+    expect(c.mtaApiKey).toBe('');
+    expect(c.compact).toBe(false);
   });
 
-  it('parses COMPACT as a boolean flag', () => {
-    expect(loadConfig({ STATION: '127', COMPACT: '1' }).compact).toBe(true);
-    expect(loadConfig({ STATION: '127', COMPACT: 'true' }).compact).toBe(true);
-    expect(loadConfig({ STATION: '127', COMPACT: 'nope' }).compact).toBe(false);
+  it('reads DATABASE_URL and ACTIVE_TTL_DAYS', () => {
+    const c = loadConfig({ DATABASE_URL: 'postgres://x', ACTIVE_TTL_DAYS: '2' });
+    expect(c.databaseUrl).toBe('postgres://x');
+    expect(c.activeTtlMs).toBe(2 * 24 * 60 * 60 * 1000);
   });
 
-  it('parses a comma-separated STATION list, trimming whitespace', () => {
-    const cfg = loadConfig({ STATION: '127, 635 ,A32' });
-    expect(cfg.stations).toEqual(['127', '635', 'A32']);
-  });
-
-  it('throws when STATION is missing', () => {
-    expect(() => loadConfig({})).toThrow(/STATION/);
-  });
-
-  it('throws when STATION is empty or whitespace', () => {
-    expect(() => loadConfig({ STATION: '' })).toThrow(/STATION/);
-    expect(() => loadConfig({ STATION: '   ' })).toThrow(/STATION/);
-    expect(() => loadConfig({ STATION: ' , , ' })).toThrow(/STATION/);
-  });
-
-  it('throws on invalid displayMode', () => {
-    expect(() => loadConfig({ STATION: '127', DISPLAY_MODE: 'bogus' })).toThrow(/DISPLAY_MODE/);
-  });
-
-  it('defaults busStops to an empty array', () => {
-    expect(loadConfig({ STATION: '127' }).busStops).toEqual([]);
-  });
-
-  it('parses a comma-separated BUS_STOPS list, trimming whitespace', () => {
-    const cfg = loadConfig({
-      STATION: '127',
-      BUS_STOPS: '400080, 404947',
-      MTA_API_KEY: 'x'.repeat(36),
-    });
-    expect(cfg.busStops).toEqual(['400080', '404947']);
-  });
-
-  it('throws when BUS_STOPS is set without MTA_API_KEY', () => {
-    expect(() => loadConfig({ STATION: '127', BUS_STOPS: '400080' })).toThrow(/MTA_API_KEY/);
-    expect(() => loadConfig({ STATION: '127', BUS_STOPS: '400080' })).toThrow(/BUS_STOPS/);
-  });
-
-  it('defaults dataDir to <cwd>/data when DATA_DIR is unset', () => {
-    const cfg = loadConfig({ STATION: '127' });
-    expect(cfg.dataDir).toBe(path.resolve(process.cwd(), 'data'));
-    expect(cfg.dataDir.endsWith('data')).toBe(true);
-  });
-
-  it('uses DATA_DIR when set', () => {
-    const cfg = loadConfig({ STATION: '127', DATA_DIR: '/tmp/x' });
-    expect(cfg.dataDir).toBe('/tmp/x');
+  it('rejects an invalid DISPLAY_MODE', () => {
+    expect(() => loadConfig({ DISPLAY_MODE: 'wall' })).toThrow(/DISPLAY_MODE/);
   });
 });
