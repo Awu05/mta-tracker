@@ -147,11 +147,24 @@ async function main() {
     else { void pollArrivalsCycle(); void pollAlertsCycle(); }
   }
 
+  async function onWeatherChange(lat: number, lon: number) {
+    // Invalidate the memo so the new location is in the next plan() (and the old
+    // one gets retain()-evicted). Fetch its weather right now so the board shows
+    // it on the client's immediate reload instead of waiting up to
+    // WEATHER_REFRESH_SEC for the scheduled cycle.
+    cachedPlan = null;
+    try {
+      weatherCache.set(lat, lon, await fetchWeather(lat, lon));
+    } catch (err) {
+      console.error('[index] immediate weather fetch failed for', { lat, lon }, err);
+    }
+  }
+
   const app = createApp({
     cache, repo, weatherCache,
     defaultLat: config.weatherLat, defaultLon: config.weatherLon,
     displayMode: config.displayMode, compact: config.compact,
-    mtaApiKey: config.mtaApiKey, onBoardChange, staticDir,
+    mtaApiKey: config.mtaApiKey, onBoardChange, onWeatherChange, staticDir,
   });
 
   void pollArrivalsCycle();

@@ -18,6 +18,10 @@ export interface AppDeps {
   compact: boolean;
   mtaApiKey: string;
   onBoardChange?: (entry?: BoardEntry) => void;
+  /** Called after a board's weather location changes so the new location's
+   *  weather can be fetched/cached immediately (awaited) rather than waiting
+   *  for the next scheduled weather poll. */
+  onWeatherChange?: (lat: number, lon: number) => Promise<void> | void;
   fetchFn?: typeof fetch;
   staticDir?: string;
 }
@@ -34,7 +38,7 @@ function readCookie(header: string | undefined, name: string): string | null {
 const COOKIE_MAX_AGE = 'Max-Age=31536000; Path=/; SameSite=Lax';
 
 export function createApp(deps: AppDeps): Express {
-  const { cache, repo, weatherCache, defaultLat, defaultLon, displayMode, compact, mtaApiKey, onBoardChange, fetchFn, staticDir } = deps;
+  const { cache, repo, weatherCache, defaultLat, defaultLon, displayMode, compact, mtaApiKey, onBoardChange, onWeatherChange, fetchFn, staticDir } = deps;
   const defaults = { lat: defaultLat, lon: defaultLon };
 
   const app = express();
@@ -133,6 +137,9 @@ export function createApp(deps: AppDeps): Express {
     }
     await repo.getOrCreate(code, defaults);
     await repo.setWeather(code, lat, lon);
+    // Warm the cache for the new location before responding so the client's
+    // immediate reload shows weather instead of a gap until the next poll.
+    await onWeatherChange?.(lat, lon);
     res.json({ ok: true });
   });
 

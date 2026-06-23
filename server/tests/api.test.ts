@@ -101,6 +101,18 @@ describe('PUT /api/boards/:code/weather', () => {
     expect((await repo.getOrCreate('x', { lat: 0, lon: 0 })).weatherLat).toBe(41);
     expect((await request(app).put('/api/boards/x/weather').send({ lat: 999, lon: 0 })).status).toBe(400);
   });
+
+  it('weather is available on the next board fetch after setting a location (no disappear)', async () => {
+    const weather = { tempF: 60, condition: 'Clear', icon: 'clear', hourly: [], daily: [] };
+    const { app, weatherCache } = makeApp({
+      // Mirror index.ts: warm the cache for the new location synchronously.
+      onWeatherChange: (lat, lon) => { weatherCache.set(lat, lon, weather); },
+    });
+    await request(app).get('/api/boards/x'); // create at default location
+    await request(app).put('/api/boards/x/weather').send({ lat: 41, lon: -73.5 });
+    const res = await request(app).get('/api/boards/x');
+    expect(res.body.weather?.tempF).toBe(60);
+  });
 });
 
 describe('GET /api/geocode', () => {
