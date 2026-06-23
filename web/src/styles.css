@@ -305,6 +305,15 @@ body {
   color: var(--muted); cursor: pointer; padding: 4px 10px; font-size: 13px;
 }
 .weather-placeholder:hover { color: var(--text); border-color: var(--muted); }
+.sortable-station { position: relative; }
+.drag-handle {
+  position: absolute; left: -22px; top: 2px;
+  border: none; background: none; color: var(--muted); cursor: grab;
+  font-size: 18px; line-height: 1; padding: 4px; touch-action: none;
+}
+.drag-handle:active { cursor: grabbing; }
+.drag-handle:hover { color: var(--text); }
+
 .board-empty { text-align: center; color: var(--muted); padding: 48px 16px; }
 .board-empty-title { font-size: 18px; font-weight: 700; color: var(--dim); margin: 0 0 8px; }
 .board-empty-hint { font-size: 14px; margin: 0; line-height: 1.5; }

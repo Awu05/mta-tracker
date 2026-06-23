@@ -104,6 +104,18 @@ describe('App', () => {
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
   });
 
+  it('renders no drag handles outside edit mode, and one per station in edit mode', async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
+
+    expect(screen.queryAllByLabelText(/drag to reorder/i)).toHaveLength(0);
+
+    const editButton = screen.getByRole('button', { name: /edit/i });
+    fireEvent.click(editButton);
+
+    expect(screen.queryAllByLabelText(/drag to reorder/i)).toHaveLength(1);
+  });
+
   it('does not show the welcome popup when the board already has stations', async () => {
     render(<App />); // default fixture has a station
     await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());

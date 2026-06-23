@@ -23,4 +23,25 @@ maybe('PgBoardsRepo (integration, needs DATABASE_URL)', () => {
     expect(active.some((x) => x.code === code)).toBe(true);
     expect(await repo.removeEntry(code, 'subway', '127')).toBe(true);
   });
+
+  it('reorderEntries persists the new order', async () => {
+    const repo = await createPgRepo(url as string);
+    const code = `test_${Date.now()}_reorder`;
+    await repo.getOrCreate(code);
+    await repo.addEntry(code, { id: '127', type: 'subway' });
+    await repo.addEntry(code, { id: '635', type: 'subway' });
+    await repo.addEntry(code, { id: '401', type: 'bus' });
+    expect(await repo.reorderEntries(code, [
+      { id: '401', type: 'bus' },
+      { id: '635', type: 'subway' },
+      { id: '127', type: 'subway' },
+    ])).toBe(true);
+    const b = await repo.getOrCreate(code);
+    expect(b.entries).toEqual([
+      { id: '401', type: 'bus' },
+      { id: '635', type: 'subway' },
+      { id: '127', type: 'subway' },
+    ]);
+    expect(await repo.reorderEntries('nonexistent-code-xyz', [])).toBe(false);
+  });
 });

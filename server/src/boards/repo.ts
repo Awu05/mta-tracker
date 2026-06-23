@@ -13,4 +13,8 @@ export interface BoardsRepo {
   setWeather(code: string, lat: number, lon: number): Promise<void>;
   /** Boards whose last_seen is within `ttlMs` of now. */
   activeBoards(ttlMs: number): Promise<Board[]>;
+  /** Reorder the board's entries to match `order` (matched by id+type). Entries not
+   *  present in `order` keep their relative order at the end. Returns false if the
+   *  board doesn't exist. */
+  reorderEntries(code: string, order: BoardEntry[]): Promise<boolean>;
 }

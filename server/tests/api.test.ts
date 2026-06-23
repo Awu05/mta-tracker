@@ -101,6 +101,26 @@ describe('DELETE /api/boards/:code/stations', () => {
   });
 });
 
+describe('PUT /api/boards/:code/stations/order', () => {
+  it('reorders stations and reflects the new order on the next GET', async () => {
+    const { app } = makeApp();
+    await request(app).post('/api/boards/x/stations').send({ id: '127', type: 'subway' });
+    await request(app).post('/api/boards/x/stations').send({ id: '635', type: 'subway' });
+    const res = await request(app).put('/api/boards/x/stations/order').send({
+      order: [{ id: '635', type: 'subway' }, { id: '127', type: 'subway' }],
+    });
+    expect(res.status).toBe(200);
+    const get = await request(app).get('/api/boards/x');
+    expect(get.body.stations.map((s: { station: { id: string } }) => s.station.id)).toEqual(['635', '127']);
+  });
+
+  it('400 on a malformed body', async () => {
+    const { app } = makeApp();
+    const res = await request(app).put('/api/boards/x/stations/order').send({ order: 'nope' });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe('PUT /api/boards/:code/weather', () => {
   it('sets the location, 400 on out-of-range', async () => {
     const { app, repo } = makeApp();

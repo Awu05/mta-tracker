@@ -75,6 +75,17 @@ export class PgBoardsRepo implements BoardsRepo {
     );
     return rows.map(toBoard);
   }
+
+  async reorderEntries(code: string, order: BoardEntry[]): Promise<boolean> {
+    const { rows } = await this.pool.query<BoardRow>('SELECT entries FROM boards WHERE code = $1', [code]);
+    if (rows.length === 0) return false;
+    const key = (e: BoardEntry) => `${e.type}:${e.id}`;
+    const rank = new Map(order.map((e, i) => [key(e), i] as const));
+    const next = [...rows[0].entries].sort((a, b) =>
+      (rank.get(key(a)) ?? Infinity) - (rank.get(key(b)) ?? Infinity));
+    await this.pool.query('UPDATE boards SET entries = $2 WHERE code = $1', [code, JSON.stringify(next)]);
+    return true;
+  }
 }
 
 export async function createPgRepo(databaseUrl: string): Promise<PgBoardsRepo> {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchBoard, addStation, removeStation, setWeather, geocode } from '../src/api';
+import { fetchBoard, addStation, removeStation, reorderStations, setWeather, geocode } from '../src/api';
 
 beforeEach(() => { window.history.replaceState({}, '', '/b/code123'); });
 
@@ -25,6 +25,16 @@ describe('web api (board-scoped)', () => {
     const [url, init] = f.mock.calls[0];
     expect(url).toBe('/api/boards/code123/stations');
     expect(init.method).toBe('DELETE');
+  });
+
+  it('reorderStations PUTs the order to /stations/order', async () => {
+    const f = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', f);
+    await reorderStations('c1', [{ id: '127', type: 'subway' }, { id: '401', type: 'bus' }]);
+    const [url, init] = f.mock.calls[0];
+    expect(url).toBe('/api/boards/c1/stations/order');
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body)).toEqual({ order: [{ id: '127', type: 'subway' }, { id: '401', type: 'bus' }] });
   });
 
   it('setWeather PUTs lat/lon', async () => {

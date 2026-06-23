@@ -127,6 +127,19 @@ export function createApp(deps: AppDeps): Express {
     res.json({ ok: true });
   });
 
+  app.put('/api/boards/:code/stations/order', async (req, res) => {
+    const code = req.params.code;
+    const { order } = (req.body ?? {}) as { order?: unknown };
+    if (!Array.isArray(order) ||
+        !order.every((e) => e && typeof (e as any).id === 'string' && ((e as any).type === 'subway' || (e as any).type === 'bus'))) {
+      res.status(400).json({ error: 'order must be an array of { id, type }' });
+      return;
+    }
+    await repo.getOrCreate(code);
+    await repo.reorderEntries(code, order as BoardEntry[]);
+    res.json({ ok: true });
+  });
+
   app.put('/api/boards/:code/weather', async (req, res) => {
     const code = req.params.code;
     const { lat, lon } = (req.body ?? {}) as { lat?: number; lon?: number };

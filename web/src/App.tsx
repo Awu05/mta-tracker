@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as BoardData } from './types';
-import { fetchBoard, removeStation, getBoardCode } from './api';
+import { fetchBoard, removeStation, reorderStations, getBoardCode } from './api';
 import { Board } from './components/Board';
 import { WelcomeModal } from './components/WelcomeModal';
 
@@ -80,6 +80,18 @@ export default function App() {
     await reload();
   }
 
+  async function onReorder(order: { id: string; type: 'subway' | 'bus' }[]) {
+    setBoard((prev) => {
+      if (!prev) return prev;
+      const rank = new Map(order.map((e, i) => [`${e.type}:${e.id}`, i] as const));
+      const stations = [...prev.stations].sort((a, b) =>
+        (rank.get(`${a.type}:${a.station.id}`) ?? Infinity) - (rank.get(`${b.type}:${b.station.id}`) ?? Infinity));
+      return { ...prev, stations };
+    });
+    try { await reorderStations(code.current, order); } catch { /* will be corrected by reload */ }
+    await reload();
+  }
+
   return (
     <div className={`app mode-${board.displayMode}${compact ? ' compact' : ''}`}>
       <Board
@@ -89,6 +101,7 @@ export default function App() {
         editMode={editMode}
         onToggleEdit={toggleEdit}
         onRemove={onRemove}
+        onReorder={onReorder}
         onChanged={reload}
         boardCode={code.current}
       />

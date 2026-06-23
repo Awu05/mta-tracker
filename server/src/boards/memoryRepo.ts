@@ -52,4 +52,14 @@ export class MemoryBoardsRepo implements BoardsRepo {
     const cutoff = this.now() - ttlMs;
     return [...this.rows.values()].filter((r) => r.lastSeenMs > cutoff).map((r) => this.snapshot(r));
   }
+
+  async reorderEntries(code: string, order: BoardEntry[]): Promise<boolean> {
+    const r = this.rows.get(code);
+    if (!r) return false;
+    const key = (e: BoardEntry) => `${e.type}:${e.id}`;
+    const rank = new Map(order.map((e, i) => [key(e), i] as const));
+    r.entries = [...r.entries].sort((a, b) =>
+      (rank.get(key(a)) ?? Infinity) - (rank.get(key(b)) ?? Infinity));
+    return true;
+  }
 }

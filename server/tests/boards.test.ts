@@ -55,4 +55,43 @@ describe('MemoryBoardsRepo', () => {
     const active = await repo.activeBoards(5_000); // last 5s
     expect(active.map((b) => b.code)).toEqual(['new']);
   });
+
+  it('reorderEntries reorders entries to match the given order', async () => {
+    const repo = new MemoryBoardsRepo();
+    await repo.getOrCreate('x');
+    await repo.addEntry('x', { id: '127', type: 'subway' });
+    await repo.addEntry('x', { id: '635', type: 'subway' });
+    await repo.addEntry('x', { id: '401', type: 'bus' });
+    expect(await repo.reorderEntries('x', [
+      { id: '401', type: 'bus' },
+      { id: '127', type: 'subway' },
+      { id: '635', type: 'subway' },
+    ])).toBe(true);
+    const b = await repo.getOrCreate('x');
+    expect(b.entries).toEqual([
+      { id: '401', type: 'bus' },
+      { id: '127', type: 'subway' },
+      { id: '635', type: 'subway' },
+    ]);
+  });
+
+  it('reorderEntries with a partial order moves named entries first, keeps the rest in original relative order', async () => {
+    const repo = new MemoryBoardsRepo();
+    await repo.getOrCreate('x');
+    await repo.addEntry('x', { id: '127', type: 'subway' });
+    await repo.addEntry('x', { id: '635', type: 'subway' });
+    await repo.addEntry('x', { id: '401', type: 'bus' });
+    await repo.reorderEntries('x', [{ id: '401', type: 'bus' }]);
+    const b = await repo.getOrCreate('x');
+    expect(b.entries).toEqual([
+      { id: '401', type: 'bus' },
+      { id: '127', type: 'subway' },
+      { id: '635', type: 'subway' },
+    ]);
+  });
+
+  it('reorderEntries on an unknown code returns false', async () => {
+    const repo = new MemoryBoardsRepo();
+    expect(await repo.reorderEntries('nope', [])).toBe(false);
+  });
 });

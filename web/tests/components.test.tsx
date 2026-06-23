@@ -4,6 +4,9 @@ import { LineBullet } from '../src/components/LineBullet';
 import { DirectionColumn } from '../src/components/DirectionColumn';
 import { Alerts } from '../src/components/Alerts';
 import { StationSection } from '../src/components/StationSection';
+import { SortableStationSection } from '../src/components/SortableStationSection';
+import { DndContext } from '@dnd-kit/core';
+import { SortableContext } from '@dnd-kit/sortable';
 import { ArrivalRow } from '../src/components/ArrivalRow';
 import { Header } from '../src/components/Header';
 import { EditPanel } from '../src/components/EditPanel';
@@ -224,6 +227,32 @@ describe('components', () => {
       />
     );
     expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
+  });
+
+  it('SortableStationSection renders a drag handle plus the wrapped StationSection content', () => {
+    render(
+      <DndContext>
+        <SortableContext items={['subway:127']}>
+          <SortableStationSection
+            id="subway:127"
+            compact={false}
+            editMode
+            onRemove={vi.fn()}
+            board={{
+              station: { id: '127', name: 'Times Sq–42 St' },
+              type: 'subway',
+              updatedAt: '',
+              stale: false,
+              directions: [],
+              arrivals: [],
+              alerts: [],
+            }}
+          />
+        </SortableContext>
+      </DndContext>
+    );
+    expect(screen.getByLabelText(/drag to reorder Times Sq–42 St/i)).toBeInTheDocument();
+    expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument();
   });
 
   it('EditPanel searches, lists results, and adds a station then shows nearby buses', async () => {

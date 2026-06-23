@@ -64,6 +64,13 @@ export async function removeStation(code: string, entry: { id: string; type: 'su
   if (!res.ok) throw new Error(`Remove station failed: ${res.status}`);
 }
 
+export async function reorderStations(code: string, order: { id: string; type: 'subway' | 'bus' }[]): Promise<void> {
+  const res = await fetch(`/api/boards/${code}/stations/order`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order }),
+  });
+  if (!res.ok) throw new Error(`Reorder failed: ${res.status}`);
+}
+
 export async function setWeather(code: string, lat: number, lon: number): Promise<void> {
   const res = await fetch(`/api/boards/${code}/weather`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lat, lon }),
