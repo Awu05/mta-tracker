@@ -135,6 +135,14 @@ async function main() {
   const staticDir = path.resolve(__dirname, '../public');
 
   function onBoardChange(entry?: { id: string; type: 'subway' | 'bus' }) {
+    // Invalidate the memoized plan BEFORE triggering the immediate poll cycle below.
+    // Without this, a board mutation (add/remove station) can race a still-fresh
+    // memoized plan computed before the mutation landed in the repo snapshot, so the
+    // immediate pollArrivalsCycle()/pollBusCycle() would reconcile() the cache against
+    // a stale plan and evict the just-registered station until the next TTL/interval
+    // recompute. Forcing a fresh plan() read here keeps "register so it appears
+    // immediately" true while leaving the periodic TTL-based memoization intact.
+    cachedPlan = null;
     if (entry?.type === 'bus') void pollBusCycle();
     else { void pollArrivalsCycle(); void pollAlertsCycle(); }
   }
