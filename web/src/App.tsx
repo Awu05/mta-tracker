@@ -5,19 +5,28 @@ import { Board } from './components/Board';
 import { WelcomeModal } from './components/WelcomeModal';
 
 const POLL_MS = 10_000;
+const COMPACT_KEY = 'mta:compact';
 
-function compactOverride(): boolean | null {
-  const params = new URLSearchParams(window.location.search);
-  if (!params.has('compact')) return null;
-  const v = (params.get('compact') ?? '').trim().toLowerCase();
-  if (v === '' || ['1', 'true', 'yes', 'on'].includes(v)) return true;
-  return false; // '0','false','no','off', or anything else
+// Per-device compact preference, remembered in the browser (not the URL, not the
+// server) so each display keeps its own density without affecting other devices
+// viewing the same board. null = no preference yet (fall back to the server default).
+function readCompactPref(): boolean | null {
+  try {
+    const v = localStorage.getItem(COMPACT_KEY);
+    if (v === '1') return true;
+    if (v === '0') return false;
+  } catch { /* localStorage unavailable — fall back to server default */ }
+  return null;
+}
+
+function saveCompactPref(v: boolean): void {
+  try { localStorage.setItem(COMPACT_KEY, v ? '1' : '0'); } catch { /* ignore */ }
 }
 
 export default function App() {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [error, setError] = useState(false);
-  const [override, setOverride] = useState<boolean | null>(() => compactOverride());
+  const [override, setOverride] = useState<boolean | null>(() => readCompactPref());
   const [editMode, setEditMode] = useState(false);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const timer = useRef<number | null>(null);
@@ -59,9 +68,7 @@ export default function App() {
   function toggleCompact() {
     const next = !compact;
     setOverride(next);
-    const params = new URLSearchParams(window.location.search);
-    params.set('compact', next ? '1' : '0');
-    window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+    saveCompactPref(next);
   }
 
   function toggleEdit() {

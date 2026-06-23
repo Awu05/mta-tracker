@@ -25,6 +25,7 @@ beforeEach(() => {
 
 afterEach(() => {
   window.history.replaceState({}, '', '/');
+  localStorage.clear();
 });
 
 describe('App', () => {
@@ -60,23 +61,23 @@ describe('App', () => {
     expect(document.querySelector('.app.compact')).toBeInTheDocument();
   });
 
-  it('URL ?compact=1 overrides a non-compact server flag', async () => {
-    window.history.replaceState({}, '', '/b/testcode?compact=1');
+  it('a saved compact preference overrides a non-compact server flag', async () => {
+    localStorage.setItem('mta:compact', '1');
     render(<App />);
     await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
     expect(document.querySelector('.app.compact')).toBeInTheDocument();
   });
 
-  it('URL ?compact=0 overrides a compact server flag', async () => {
+  it('a saved full preference overrides a compact server flag', async () => {
+    localStorage.setItem('mta:compact', '0');
     const compactBoard = { ...board, compact: true };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => compactBoard }));
-    window.history.replaceState({}, '', '/b/testcode?compact=0');
     render(<App />);
     await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
     expect(document.querySelector('.app.compact')).not.toBeInTheDocument();
   });
 
-  it('toggle button flips effective compact state and persists to the URL', async () => {
+  it('toggle button flips compact state, remembers it, and leaves the URL clean', async () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
 
@@ -88,7 +89,9 @@ describe('App', () => {
 
     expect(document.querySelector('.app.compact')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /full/i })).toBeInTheDocument();
-    expect(window.location.search).toBe('?compact=1');
+    // Remembered in the browser, with no ?compact junk added to the URL.
+    expect(localStorage.getItem('mta:compact')).toBe('1');
+    expect(window.location.search).toBe('');
   });
 
   it('Edit toggle reveals the search box for adding stations', async () => {

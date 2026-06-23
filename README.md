@@ -81,7 +81,7 @@ All configuration is environment variables (see [`.env.example`](.env.example)):
 | `DATABASE_URL` | Postgres connection string for board storage (e.g. `postgres://mta:mta@db:5432/mta`). `docker-compose.yml` sets this for the bundled `db` service automatically. If unset, boards are kept in memory only (not persisted). |
 | `ACTIVE_TTL_DAYS` | Boards not opened within this many days stop being polled in the background (default `7`). They still work fine when reopened. |
 | `DISPLAY_MODE` | `kiosk` (large type for a wall display) \| `phone` \| `auto` |
-| `COMPACT` | Default compact view (`true`/`false`) — denser layout, fewer arrivals, severe-only alerts. Overridable per device via `?compact=1`/`?compact=0`. See [Compact view](#compact-view). |
+| `COMPACT` | Default compact view (`true`/`false`) — denser layout, fewer arrivals, severe-only alerts. Each device remembers its own choice via the header toggle, so this is just the default. See [Compact view](#compact-view). |
 | `FEED_REFRESH_SEC` | Arrival feed poll interval (default `30`) |
 | `ALERTS_REFRESH_SEC` | Alerts feed poll interval (default `120` — alerts change slowly) |
 | `WEATHER_REFRESH_SEC` | Weather poll interval (default `600`) |
@@ -115,11 +115,11 @@ Compact mode is built for small or e-ink displays. It:
 - tightens spacing and type for denser, glanceable output.
 
 Set the default with the `COMPACT` env var. Because one server can drive several
-displays, any device can **override per-URL**:
-
-- `http://<host>:8080/?compact=1` — force compact (e.g. your e-ink panel)
-- `http://<host>:8080/?compact=0` — force full (e.g. a wall monitor)
-- no param — use the server's `COMPACT` default
+displays, density is **per device**: use the **▤ Compact / ▦ Full** toggle in the
+header on each display. That choice is remembered in the browser (so an e-ink panel
+stays compact and a wall monitor stays full), without changing the URL or affecting
+other devices viewing the same board. A device that's never used the toggle follows
+the server's `COMPACT` default.
 
 ## Editing the board
 
