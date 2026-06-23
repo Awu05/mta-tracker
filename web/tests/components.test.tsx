@@ -7,7 +7,8 @@ import { StationSection } from '../src/components/StationSection';
 import { ArrivalRow } from '../src/components/ArrivalRow';
 import { Header } from '../src/components/Header';
 import { EditPanel } from '../src/components/EditPanel';
-import type { DirectionGroup } from '../src/types';
+import { WelcomeModal } from '../src/components/WelcomeModal';
+import type { DirectionGroup, StationBoard, Weather } from '../src/types';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -282,5 +283,28 @@ describe('components', () => {
       expect(put).toBeTruthy();
       expect(JSON.parse((put![1] as RequestInit).body as string)).toEqual({ lat: 40.68, lon: -73.94 });
     });
+  });
+
+  it('WelcomeModal lists the stations and weather already added', () => {
+    const stations: StationBoard[] = [
+      { station: { id: '127', name: 'Times Sq–42 St' }, type: 'subway', updatedAt: '', stale: false, directions: [], arrivals: [], alerts: [] },
+      { station: { id: 'MTA_404123', name: 'Bus Stop 404123' }, type: 'bus', updatedAt: '', stale: false, directions: [], arrivals: [], alerts: [] },
+    ];
+    const weather: Weather = { tempF: 71.6, condition: 'Cloudy', icon: 'cloudy', hourly: [], daily: [] };
+    render(<WelcomeModal code="c1" stations={stations} weather={weather} onChanged={() => {}} onClose={() => {}} />);
+
+    // Added items show up in the running "On your board" summary.
+    expect(screen.getByText('On your board')).toBeInTheDocument();
+    expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument();
+    expect(screen.getByText('Bus Stop 404123')).toBeInTheDocument();
+    expect(screen.getByText('72° Cloudy')).toBeInTheDocument(); // rounded
+    // Once something's added, the dismiss button reads "Done".
+    expect(screen.getByRole('button', { name: /done/i })).toBeInTheDocument();
+  });
+
+  it('WelcomeModal shows no summary when nothing has been added yet', () => {
+    render(<WelcomeModal code="c1" stations={[]} weather={null} onChanged={() => {}} onClose={() => {}} />);
+    expect(screen.queryByText('On your board')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /skip for now/i })).toBeInTheDocument();
   });
 });

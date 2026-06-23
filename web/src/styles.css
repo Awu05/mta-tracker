@@ -282,3 +282,19 @@ body {
 }
 .modal-skip:hover { color: var(--text); border-color: var(--muted); }
 
+.welcome-summary {
+  margin: 0 0 4px; padding: 12px;
+  background: var(--bg); border: 1px solid var(--divider); border-radius: 8px;
+}
+.welcome-summary-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
+.welcome-added { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.welcome-added-item { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.welcome-added-name { color: var(--text); }
+.welcome-tag {
+  flex: none; font-size: 11px; font-weight: 700; border-radius: 4px;
+  padding: 2px 6px; color: #fff; min-width: 52px; text-align: center;
+}
+.welcome-tag-subway { background: #2456c6; }
+.welcome-tag-bus { background: #1c7c4a; }
+.welcome-tag-weather { background: #6b4fc4; }
+

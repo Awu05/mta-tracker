@@ -88,9 +88,10 @@ export default function App() {
       {welcomeOpen && (
         <WelcomeModal
           code={code.current}
+          stations={board.stations}
+          weather={board.weather}
           onChanged={reload}
           onClose={() => setWelcomeOpen(false)}
-          hasStations={board.stations.length > 0}
         />
       )}
     </div>
