@@ -103,8 +103,3 @@ export function transformAlertsByStation(
 
   return out;
 }
-
-/** Convenience wrapper for a single station. */
-export function transformAlerts(entities: AlertEntity[], routes: string[]): Alert[] {
-  return transformAlertsByStation(entities, [{ id: '_', routes }]).get('_')!;
-}

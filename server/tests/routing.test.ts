@@ -8,7 +8,7 @@ import { MemoryBoardsRepo } from '../src/boards/memoryRepo';
 function makeApp(over: Partial<Parameters<typeof createApp>[0]> = {}) {
   return createApp({
     cache: new BoardCache([], 90), repo: new MemoryBoardsRepo(), weatherCache: new WeatherCache(),
-    defaultLat: 40.75, defaultLon: -73.99, displayMode: 'auto', compact: false, mtaApiKey: '',
+    displayMode: 'auto', compact: false, mtaApiKey: '',
     ...over,
   });
 }
@@ -21,10 +21,25 @@ describe('routing', () => {
     expect(res.headers['set-cookie']?.[0]).toMatch(/^board=/);
   });
 
-  it('GET / with a board cookie redirects to that board', async () => {
-    const res = await request(makeApp()).get('/').set('Cookie', 'board=mycode12');
+  it('GET / with a valid board cookie redirects to that board', async () => {
+    const res = await request(makeApp()).get('/').set('Cookie', 'board=abcdefgh');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe('/b/mycode12');
+    expect(res.headers.location).toBe('/b/abcdefgh');
+  });
+
+  it('GET / with an invalid cookie mints a fresh code instead of looping', async () => {
+    const res = await request(makeApp()).get('/').set('Cookie', 'board=not-valid');
+    expect(res.status).toBe(302);
+    // A fresh valid code, not the bad one (which would ping-pong with /b/:code).
+    expect(res.headers.location).toMatch(/^\/b\/[23456789abcdefghijkmnpqrstuvwxyz]{8}$/);
+    expect(res.headers.location).not.toBe('/b/not-valid');
+    expect(res.headers['set-cookie']?.[0]).toMatch(/^board=/);
+  });
+
+  it('GET / with a malformed-percent cookie does not 500', async () => {
+    const res = await request(makeApp()).get('/').set('Cookie', 'board=%');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(/^\/b\/[23456789abcdefghijkmnpqrstuvwxyz]{8}$/);
   });
 
   it('GET /b/<invalid code> redirects to / without persisting a junk cookie', async () => {

@@ -29,28 +29,37 @@ export function getBoardCode(): string {
   return code;
 }
 
-export async function fetchBoard(code: string): Promise<Board> {
-  const res = await fetch(`/api/boards/${code}`);
-  if (!res.ok) throw new Error(`Board fetch failed: ${res.status}`);
-  return (await res.json()) as Board;
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
+// Single fetch wrapper: throw a labeled error on a non-ok response. Callers that
+// need the body use requestJson; void calls (mutations) use request directly.
+async function request(label: string, url: string, init?: RequestInit): Promise<Response> {
+  const res = init ? await fetch(url, init) : await fetch(url);
+  if (!res.ok) throw new Error(`${label} failed: ${res.status}`);
+  return res;
 }
 
-export async function searchStations(q: string): Promise<SearchResult[]> {
-  if (!q) return [];
-  const res = await fetch(`/api/stations/search?q=${encodeURIComponent(q)}`);
-  if (!res.ok) throw new Error(`Station search failed: ${res.status}`);
-  return (await res.json()) as SearchResult[];
+async function requestJson<T>(label: string, url: string, init?: RequestInit): Promise<T> {
+  return (await request(label, url, init)).json() as Promise<T>;
 }
 
-export async function fetchNearbyBuses(code: string, stationId: string): Promise<NearbyStop[]> {
-  const res = await fetch(`/api/nearby-buses?stationId=${encodeURIComponent(stationId)}&code=${encodeURIComponent(code)}`);
-  if (!res.ok) throw new Error(`Nearby buses fetch failed: ${res.status}`);
-  return (await res.json()) as NearbyStop[];
+export function fetchBoard(code: string): Promise<Board> {
+  return requestJson('Board fetch', `/api/boards/${code}`);
+}
+
+export function searchStations(q: string): Promise<SearchResult[]> {
+  if (!q) return Promise.resolve([]);
+  return requestJson('Station search', `/api/stations/search?q=${encodeURIComponent(q)}`);
+}
+
+export function fetchNearbyBuses(code: string, stationId: string): Promise<NearbyStop[]> {
+  return requestJson('Nearby buses fetch', `/api/nearby-buses?stationId=${encodeURIComponent(stationId)}&code=${encodeURIComponent(code)}`);
 }
 
 export async function addStation(code: string, entry: { id: string; type: 'subway' | 'bus' }): Promise<boolean> {
+  // Not via request(): a 409 (already added) is an expected result, not an error.
   const res = await fetch(`/api/boards/${code}/stations`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry),
+    method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(entry),
   });
   if (res.status === 409) return false;
   if (!res.ok) throw new Error(`Add station failed: ${res.status}`);
@@ -58,28 +67,23 @@ export async function addStation(code: string, entry: { id: string; type: 'subwa
 }
 
 export async function removeStation(code: string, entry: { id: string; type: 'subway' | 'bus' }): Promise<void> {
-  const res = await fetch(`/api/boards/${code}/stations`, {
-    method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry),
+  await request('Remove station', `/api/boards/${code}/stations`, {
+    method: 'DELETE', headers: JSON_HEADERS, body: JSON.stringify(entry),
   });
-  if (!res.ok) throw new Error(`Remove station failed: ${res.status}`);
 }
 
 export async function reorderStations(code: string, order: { id: string; type: 'subway' | 'bus' }[]): Promise<void> {
-  const res = await fetch(`/api/boards/${code}/stations/order`, {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order }),
+  await request('Reorder', `/api/boards/${code}/stations/order`, {
+    method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify({ order }),
   });
-  if (!res.ok) throw new Error(`Reorder failed: ${res.status}`);
 }
 
 export async function setWeather(code: string, lat: number, lon: number): Promise<void> {
-  const res = await fetch(`/api/boards/${code}/weather`, {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lat, lon }),
+  await request('Set weather', `/api/boards/${code}/weather`, {
+    method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify({ lat, lon }),
   });
-  if (!res.ok) throw new Error(`Set weather failed: ${res.status}`);
 }
 
-export async function geocode(q: string): Promise<GeoResult[]> {
-  const res = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
-  if (!res.ok) throw new Error(`Geocode failed: ${res.status}`);
-  return (await res.json()) as GeoResult[];
+export function geocode(q: string): Promise<GeoResult[]> {
+  return requestJson('Geocode', `/api/geocode?q=${encodeURIComponent(q)}`);
 }

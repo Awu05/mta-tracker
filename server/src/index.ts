@@ -33,17 +33,21 @@ async function main() {
   // Memoized with a short TTL so coincident poll cycles (arrivals/alerts/bus/weather)
   // share one repo read instead of each independently re-querying activeBoards().
   const PLAN_TTL_MS = 5000;
-  let cachedPlan: ReturnType<typeof buildPollPlan> | null = null;
-  let cachedSubwayCtx: { id: string; name: string; routes: string[] }[] = [];
-  let cachedPlanAtMs = 0;
-  async function plan() {
+  type PlanBundle = {
+    plan: ReturnType<typeof buildPollPlan>;
+    subwayCtx: ReturnType<typeof subwayCtx>;
+    atMs: number;
+  };
+  // One object holds the plan and its derived subway context together, so they
+  // can never drift apart and invalidation is a single `cached = null`.
+  let cached: PlanBundle | null = null;
+  async function getPlan(): Promise<PlanBundle> {
     const now = Date.now();
-    if (cachedPlan && now - cachedPlanAtMs < PLAN_TTL_MS) return cachedPlan;
+    if (cached && now - cached.atMs < PLAN_TTL_MS) return cached;
     const boards = await repo.activeBoards(config.activeTtlMs);
-    cachedPlan = buildPollPlan(boards);
-    cachedSubwayCtx = subwayCtx(cachedPlan.subwayIds);
-    cachedPlanAtMs = now;
-    return cachedPlan;
+    const plan = buildPollPlan(boards);
+    cached = { plan, subwayCtx: subwayCtx(plan.subwayIds), atMs: now };
+    return cached;
   }
 
   function subwayCtx(ids: string[]): { id: string; name: string; routes: string[] }[] {
@@ -62,16 +66,16 @@ async function main() {
     if (arrivalsInFlight) return;
     arrivalsInFlight = true;
     try {
-      await plan();
-      const subway: StationMeta[] = cachedSubwayCtx.map((c) => ({ id: c.id, name: c.name, type: 'subway' as const }));
-      const bus: StationMeta[] = cachedPlan!.busCodes.map((id) => ({ id, name: id, type: 'bus' as const }));
+      const { plan, subwayCtx } = await getPlan();
+      const subway: StationMeta[] = subwayCtx.map((c) => ({ id: c.id, name: c.name, type: 'subway' as const }));
+      const bus: StationMeta[] = plan.busCodes.map((id) => ({ id, name: id, type: 'bus' as const }));
       // pollArrivalsCycle is the SINGLE owner of BoardCache membership: it is the only
       // cycle that calls cache.reconcile(), and it includes bus codes (not just subway)
       // so bus stations aren't evicted between bus polls. This must keep running at the
       // shortest feed interval (it ties with the bus cycle at FEED_REFRESH_SEC) so cache
       // membership stays current with active boards.
       cache.reconcile([...subway, ...bus]);
-      await pollArrivals(cache, cachedSubwayCtx, decode);
+      await pollArrivals(cache, subwayCtx, decode);
     } catch (err) {
       console.error('[index] arrivals poll cycle error:', err);
     } finally {
@@ -84,8 +88,8 @@ async function main() {
     if (alertsInFlight) return;
     alertsInFlight = true;
     try {
-      await plan();
-      await pollAlerts(cache, cachedSubwayCtx, decode);
+      const { subwayCtx } = await getPlan();
+      await pollAlerts(cache, subwayCtx, decode);
     } catch (err) {
       console.error('[index] alerts poll cycle error:', err);
     } finally {
@@ -98,8 +102,8 @@ async function main() {
     if (busInFlight) return;
     busInFlight = true;
     try {
-      const p = await plan();
-      await pollBusStops(cache, p.busCodes, config.mtaApiKey);
+      const { plan } = await getPlan();
+      await pollBusStops(cache, plan.busCodes, config.mtaApiKey);
     } catch (err) {
       console.error('[index] bus poll cycle error:', err);
     } finally {
@@ -112,8 +116,8 @@ async function main() {
     if (weatherInFlight) return;
     weatherInFlight = true;
     try {
-      const p = await plan();
-      const locations = p.locations; // only locations users actually set
+      const { plan } = await getPlan();
+      const locations = plan.locations; // only locations users actually set
       weatherCache.retain(locations);
       await Promise.all(
         locations.map(async (loc) => {
@@ -139,19 +143,24 @@ async function main() {
     // memoized plan computed before the mutation landed in the repo snapshot, so the
     // immediate pollArrivalsCycle()/pollBusCycle() would reconcile() the cache against
     // a stale plan and evict the just-registered station until the next TTL/interval
-    // recompute. Forcing a fresh plan() read here keeps "register so it appears
+    // recompute. Forcing a fresh getPlan() read here keeps "register so it appears
     // immediately" true while leaving the periodic TTL-based memoization intact.
-    cachedPlan = null;
-    if (entry?.type === 'bus') void pollBusCycle();
-    else { void pollArrivalsCycle(); void pollAlertsCycle(); }
+    cached = null;
+    if (entry?.type === 'bus') { void pollBusCycle(); return; }
+    if (entry?.type === 'subway') { void pollArrivalsCycle(); void pollAlertsCycle(); return; }
+    // No entry: a GET registered a previously-unseen mix of stations (which can
+    // include buses), so refresh every feed rather than assuming subway-only.
+    void pollArrivalsCycle();
+    void pollAlertsCycle();
+    if (config.mtaApiKey !== '') void pollBusCycle();
   }
 
   async function onWeatherChange(lat: number, lon: number) {
-    // Invalidate the memo so the new location is in the next plan() (and the old
+    // Invalidate the memo so the new location is in the next getPlan() (and the old
     // one gets retain()-evicted). Fetch its weather right now so the board shows
     // it on the client's immediate reload instead of waiting up to
     // WEATHER_REFRESH_SEC for the scheduled cycle.
-    cachedPlan = null;
+    cached = null;
     try {
       weatherCache.set(lat, lon, await fetchWeather(lat, lon));
     } catch (err) {

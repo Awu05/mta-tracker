@@ -1,6 +1,6 @@
 import { Pool } from 'pg';
 import type { Board, BoardEntry } from '../types';
-import type { BoardsRepo } from './repo';
+import { applyOrder, type BoardsRepo } from './repo';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS boards (
@@ -45,22 +45,38 @@ export class PgBoardsRepo implements BoardsRepo {
   }
 
   async addEntry(code: string, entry: BoardEntry): Promise<boolean> {
-    const { rows } = await this.pool.query<BoardRow>('SELECT entries FROM boards WHERE code = $1', [code]);
-    if (rows.length === 0) return false;
-    const entries = rows[0].entries;
-    if (entries.some((e) => e.id === entry.id && e.type === entry.type)) return false;
-    const next = [...entries, { id: entry.id, type: entry.type }];
-    await this.pool.query('UPDATE boards SET entries = $2 WHERE code = $1', [code, JSON.stringify(next)]);
-    return true;
+    // Append in a single statement so concurrent adds to the same board can't
+    // lose each other's writes (the old SELECT-then-UPDATE was racy). The NOT
+    // EXISTS guard makes it a no-op (0 rows) when the entry is already present,
+    // matching the "false if duplicate or missing board" contract.
+    const { rowCount } = await this.pool.query(
+      `UPDATE boards SET entries = entries || $2::jsonb
+       WHERE code = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM jsonb_array_elements(entries) e
+           WHERE e->>'id' = $3 AND e->>'type' = $4)`,
+      [code, JSON.stringify([{ id: entry.id, type: entry.type }]), entry.id, entry.type],
+    );
+    return (rowCount ?? 0) > 0;
   }
 
   async removeEntry(code: string, type: 'subway' | 'bus', id: string): Promise<boolean> {
-    const { rows } = await this.pool.query<BoardRow>('SELECT entries FROM boards WHERE code = $1', [code]);
-    if (rows.length === 0) return false;
-    const next = rows[0].entries.filter((e) => !(e.id === id && e.type === type));
-    if (next.length === rows[0].entries.length) return false;
-    await this.pool.query('UPDATE boards SET entries = $2 WHERE code = $1', [code, JSON.stringify(next)]);
-    return true;
+    // Filter in a single statement (atomic w.r.t. concurrent writers). The
+    // EXISTS guard yields 0 rows when the entry isn't present, so we still
+    // return false in that case.
+    const { rowCount } = await this.pool.query(
+      `UPDATE boards
+       SET entries = COALESCE(
+         (SELECT jsonb_agg(e) FROM jsonb_array_elements(entries) e
+          WHERE NOT (e->>'id' = $2 AND e->>'type' = $3)),
+         '[]'::jsonb)
+       WHERE code = $1
+         AND EXISTS (
+           SELECT 1 FROM jsonb_array_elements(entries) e
+           WHERE e->>'id' = $2 AND e->>'type' = $3)`,
+      [code, id, type],
+    );
+    return (rowCount ?? 0) > 0;
   }
 
   async setWeather(code: string, lat: number, lon: number): Promise<void> {
@@ -77,14 +93,28 @@ export class PgBoardsRepo implements BoardsRepo {
   }
 
   async reorderEntries(code: string, order: BoardEntry[]): Promise<boolean> {
-    const { rows } = await this.pool.query<BoardRow>('SELECT entries FROM boards WHERE code = $1', [code]);
-    if (rows.length === 0) return false;
-    const key = (e: BoardEntry) => `${e.type}:${e.id}`;
-    const rank = new Map(order.map((e, i) => [key(e), i] as const));
-    const next = [...rows[0].entries].sort((a, b) =>
-      (rank.get(key(a)) ?? Infinity) - (rank.get(key(b)) ?? Infinity));
-    await this.pool.query('UPDATE boards SET entries = $2 WHERE code = $1', [code, JSON.stringify(next)]);
-    return true;
+    // Reorder needs to read the current entries, sort them in JS, then write
+    // back — so lock the row FOR UPDATE inside a transaction. Without the lock a
+    // concurrent addEntry could land between our read and write and be dropped
+    // by the stale snapshot we write back.
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query<BoardRow>('SELECT entries FROM boards WHERE code = $1 FOR UPDATE', [code]);
+      if (rows.length === 0) {
+        await client.query('ROLLBACK');
+        return false;
+      }
+      const next = applyOrder(rows[0].entries, order);
+      await client.query('UPDATE boards SET entries = $2 WHERE code = $1', [code, JSON.stringify(next)]);
+      await client.query('COMMIT');
+      return true;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 }
 

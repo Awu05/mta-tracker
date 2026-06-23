@@ -1,5 +1,5 @@
 import type { Board, BoardEntry } from '../types';
-import type { BoardsRepo } from './repo';
+import { applyOrder, type BoardsRepo } from './repo';
 
 interface Row extends Board {
   lastSeenMs: number;
@@ -56,10 +56,7 @@ export class MemoryBoardsRepo implements BoardsRepo {
   async reorderEntries(code: string, order: BoardEntry[]): Promise<boolean> {
     const r = this.rows.get(code);
     if (!r) return false;
-    const key = (e: BoardEntry) => `${e.type}:${e.id}`;
-    const rank = new Map(order.map((e, i) => [key(e), i] as const));
-    r.entries = [...r.entries].sort((a, b) =>
-      (rank.get(key(a)) ?? Infinity) - (rank.get(key(b)) ?? Infinity));
+    r.entries = applyOrder(r.entries, order);
     return true;
   }
 }

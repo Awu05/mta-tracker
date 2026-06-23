@@ -28,7 +28,11 @@ function readCookie(header: string | undefined, name: string): string | null {
   if (!header) return null;
   for (const part of header.split(';')) {
     const [k, ...v] = part.trim().split('=');
-    if (k === name) return decodeURIComponent(v.join('='));
+    if (k === name) {
+      // A malformed percent-encoding (e.g. a tampered "board=%") would otherwise
+      // throw URIError and 500 the landing page; treat it as no cookie.
+      try { return decodeURIComponent(v.join('=')); } catch { return null; }
+    }
   }
   return null;
 }
@@ -42,6 +46,17 @@ export function createApp(deps: AppDeps): Express {
   app.use(express.json());
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+
+  // Reject malformed board codes on every /api/boards/:code route up front, so a
+  // crawler hitting random paths can't lazily create (and keep "active") unbounded
+  // junk board rows. The HTML /b/:code route does its own validation + redirect.
+  app.use('/api/boards/:code', (req, res, next) => {
+    if (!isValidCode(req.params.code)) {
+      res.status(400).json({ error: 'invalid board code' });
+      return;
+    }
+    next();
+  });
 
   app.get('/api/boards/:code', async (req, res) => {
     const code = req.params.code;
@@ -60,14 +75,21 @@ export function createApp(deps: AppDeps): Express {
         }
         cache.addStation({ id: e.id, name: info.name, type: 'subway' });
       } else {
-        cache.addStation({ id: e.id, name: e.id, type: 'bus' });
+        // The friendly stop name only arrives with the first SIRI poll; show a
+        // recognizable "Bus <code>" placeholder until then instead of a bare id.
+        cache.addStation({ id: e.id, name: `Bus ${e.id}`, type: 'bus' });
       }
       added = true;
     }
     if (added) onBoardChange?.();
-    const weather = board.weatherLat !== null && board.weatherLon !== null
-      ? weatherCache.get(board.weatherLat, board.weatherLon)
+    const loc = board.weatherLat !== null && board.weatherLon !== null
+      ? { lat: board.weatherLat, lon: board.weatherLon }
       : null;
+    const weather = loc ? weatherCache.get(loc.lat, loc.lon) : null;
+    // Self-heal: a set location with no cached weather (cold start, or a warm
+    // that failed) would otherwise show a permanent gap. Kick a fetch so the
+    // next poll/reload fills it rather than relying on the write path alone.
+    if (loc && weather === null) void onWeatherChange?.(loc.lat, loc.lon);
     const model = cache.getBoardModel(board.entries, weather, Date.now());
     res.json({ ...model, displayMode, compact, code });
   });
@@ -87,8 +109,9 @@ export function createApp(deps: AppDeps): Express {
       res.status(400).json({ error: 'id is required' });
       return;
     }
-    // Validate + resolve a subway station name up front.
-    let name = id;
+    // Validate + resolve a subway station name up front; buses get a
+    // "Bus <code>" placeholder until their first poll resolves the real name.
+    let name = type === 'bus' ? `Bus ${id}` : id;
     if (type === 'subway') {
       try {
         name = getStation(id).name;
@@ -183,7 +206,7 @@ export function createApp(deps: AppDeps): Express {
     }
     try {
       const stops = await fetchNearbyBusStops(info.lat, info.lon, mtaApiKey, fetchFn);
-      const board = code ? await repo.getOrCreate(code) : null;
+      const board = code && isValidCode(code) ? await repo.getOrCreate(code) : null;
       const busIds = new Set((board?.entries ?? []).filter((e) => e.type === 'bus').map((e) => e.id));
       res.json(stops.map((s) => ({ ...s, alreadyAdded: busIds.has(s.code) })));
     } catch (err) {
@@ -193,8 +216,13 @@ export function createApp(deps: AppDeps): Express {
 
   app.get('/', (req, res) => {
     const existing = readCookie(req.headers.cookie, 'board');
-    const code = existing ?? generateCode();
-    if (!existing) res.setHeader('Set-Cookie', `board=${code}; ${COOKIE_MAX_AGE}`);
+    // Only reuse the cookie if it holds a valid code. A stale/tampered cookie
+    // would otherwise redirect to /b/<bad>, which redirects back to / — an
+    // infinite loop, since /b/:code doesn't clear the bad cookie. Minting a
+    // fresh code (and overwriting the cookie) breaks that loop.
+    const valid = existing !== null && isValidCode(existing);
+    const code = valid ? existing : generateCode();
+    if (!valid) res.setHeader('Set-Cookie', `board=${code}; ${COOKIE_MAX_AGE}`);
     res.redirect(302, `/b/${code}`);
   });
 

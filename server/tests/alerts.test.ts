@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { transformAlerts, transformAlertsByStation } from '../src/feeds/alerts';
+import { transformAlertsByStation } from '../src/feeds/alerts';
+
+// Single-station convenience for these tests; production code uses the
+// fan-out form (transformAlertsByStation) directly.
+function transformAlerts(entities: Parameters<typeof transformAlertsByStation>[0], routes: string[]) {
+  return transformAlertsByStation(entities, [{ id: '_', routes }]).get('_')!;
+}
 
 function alertEntity(routes: string[], header: string, effect?: string) {
   return {
