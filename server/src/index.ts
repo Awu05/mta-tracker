@@ -35,21 +35,23 @@ async function main() {
   // share one repo read instead of each independently re-querying activeBoards().
   const PLAN_TTL_MS = 5000;
   let cachedPlan: ReturnType<typeof buildPollPlan> | null = null;
+  let cachedSubwayCtx: { id: string; name: string; routes: string[] }[] = [];
   let cachedPlanAtMs = 0;
   async function plan() {
     const now = Date.now();
     if (cachedPlan && now - cachedPlanAtMs < PLAN_TTL_MS) return cachedPlan;
     const boards = await repo.activeBoards(config.activeTtlMs);
     cachedPlan = buildPollPlan(boards);
+    cachedSubwayCtx = subwayCtx(cachedPlan.subwayIds);
     cachedPlanAtMs = now;
     return cachedPlan;
   }
 
-  function subwayMetas(ids: string[]): StationMeta[] {
+  function subwayCtx(ids: string[]): { id: string; name: string; routes: string[] }[] {
     return ids.flatMap((id) => {
       try {
         const info = getStation(id);
-        return [{ id, name: info.name, type: 'subway' as const }];
+        return [{ id, name: info.name, routes: info.routes }];
       } catch {
         return [];
       }
@@ -61,17 +63,16 @@ async function main() {
     if (arrivalsInFlight) return;
     arrivalsInFlight = true;
     try {
-      const p = await plan();
-      const subway = subwayMetas(p.subwayIds);
-      const bus: StationMeta[] = p.busCodes.map((id) => ({ id, name: id, type: 'bus' as const }));
+      await plan();
+      const subway: StationMeta[] = cachedSubwayCtx.map((c) => ({ id: c.id, name: c.name, type: 'subway' as const }));
+      const bus: StationMeta[] = cachedPlan!.busCodes.map((id) => ({ id, name: id, type: 'bus' as const }));
       // pollArrivalsCycle is the SINGLE owner of BoardCache membership: it is the only
       // cycle that calls cache.reconcile(), and it includes bus codes (not just subway)
       // so bus stations aren't evicted between bus polls. This must keep running at the
       // shortest feed interval (it ties with the bus cycle at FEED_REFRESH_SEC) so cache
       // membership stays current with active boards.
       cache.reconcile([...subway, ...bus]);
-      const stations = subway.map((m) => ({ id: m.id, name: m.name, routes: getStation(m.id).routes }));
-      await pollArrivals(cache, stations, decode);
+      await pollArrivals(cache, cachedSubwayCtx, decode);
     } catch (err) {
       console.error('[index] arrivals poll cycle error:', err);
     } finally {
@@ -84,9 +85,8 @@ async function main() {
     if (alertsInFlight) return;
     alertsInFlight = true;
     try {
-      const p = await plan();
-      const stations = subwayMetas(p.subwayIds).map((m) => ({ id: m.id, name: m.name, routes: getStation(m.id).routes }));
-      await pollAlerts(cache, stations, decode);
+      await plan();
+      await pollAlerts(cache, cachedSubwayCtx, decode);
     } catch (err) {
       console.error('[index] alerts poll cycle error:', err);
     } finally {

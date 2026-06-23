@@ -53,19 +53,58 @@ function headerText(a: NonNullable<AlertEntity['alert']>): string {
   return (en?.text ?? '').trim();
 }
 
-export function transformAlerts(entities: AlertEntity[], routes: string[]): Alert[] {
-  const wanted = new Set(routes);
-  const out: Alert[] = [];
+interface StationRoutes { id: string; routes: string[]; }
+
+/**
+ * Single pass over all decoded alert entities, fanning each alert out to
+ * every requested station whose routes it touches. Cost is O(entities ×
+ * routesPerAlert + stations) regardless of how many stations are configured —
+ * versus re-scanning the whole feed once per station. Returns a map keyed by
+ * station id; every requested id is present (empty array if no alerts
+ * matched).
+ */
+export function transformAlertsByStation(
+  entities: AlertEntity[],
+  stations: StationRoutes[],
+): Map<string, Alert[]> {
+  const stationsByRoute = new Map<string, string[]>();
+  for (const s of stations) {
+    for (const r of s.routes) {
+      const ids = stationsByRoute.get(r);
+      if (ids) ids.push(s.id);
+      else stationsByRoute.set(r, [s.id]);
+    }
+  }
+
+  const out = new Map<string, Alert[]>();
+  for (const s of stations) out.set(s.id, []);
+
   for (const e of entities) {
     const a = e.alert;
     if (!a) continue;
     const alertRoutes = (a.informedEntity ?? [])
       .map((ie) => ie.routeId)
       .filter((r): r is string => !!r);
-    if (!alertRoutes.some((r) => wanted.has(r))) continue;
+    if (alertRoutes.length === 0) continue;
+
+    // Union of stations matching ANY of this alert's routes, deduped so an
+    // alert touching 2+ of a station's routes isn't added to it twice.
+    const matchedStations = new Set<string>();
+    for (const r of alertRoutes) {
+      for (const id of stationsByRoute.get(r) ?? []) matchedStations.add(id);
+    }
+    if (matchedStations.size === 0) continue;
+
     const text = headerText(a);
     if (!text) continue;
-    out.push({ routes: [...new Set(alertRoutes)], severity: severity(a.effect, text), text });
+    const alert: Alert = { routes: [...new Set(alertRoutes)], severity: severity(a.effect, text), text };
+    for (const id of matchedStations) out.get(id)!.push(alert);
   }
+
   return out;
+}
+
+/** Convenience wrapper for a single station. */
+export function transformAlerts(entities: AlertEntity[], routes: string[]): Alert[] {
+  return transformAlertsByStation(entities, [{ id: '_', routes }]).get('_')!;
 }

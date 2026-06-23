@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { transformAlerts } from '../src/feeds/alerts';
+import { transformAlerts, transformAlertsByStation } from '../src/feeds/alerts';
 
 function alertEntity(routes: string[], header: string, effect?: string) {
   return {
@@ -65,5 +65,57 @@ describe('transformAlerts', () => {
     expect(transformAlerts([a('No [1] train service in both directions')], ['1'])[0].severity).toBe('suspended');
     expect(transformAlerts([a('[1] trains are running with longer wait times')], ['1'])[0].severity).toBe('delay');
     expect(transformAlerts([a('Elevator at station is out of service')], ['1'])[0].severity).toBe('info');
+  });
+});
+
+describe('transformAlertsByStation', () => {
+  it('fans a single shared entity list out to only the stations whose routes match', () => {
+    const entities = [
+      alertEntity(['N', 'Q'], 'Northbound delays near 57 St', 'SIGNIFICANT_DELAYS'),
+      alertEntity(['L'], 'L train planned work'),
+    ];
+    const stations = [
+      { id: 'A', routes: ['1', 'N'] }, // matches the N/Q alert
+      { id: 'B', routes: ['L'] },      // matches the L alert
+      { id: 'C', routes: ['7'] },      // matches nothing
+    ];
+    const byStation = transformAlertsByStation(entities, stations);
+
+    expect(byStation.get('A')).toHaveLength(1);
+    expect(byStation.get('A')![0].routes).toEqual(['N', 'Q']);
+    expect(byStation.get('B')).toHaveLength(1);
+    expect(byStation.get('B')![0].text).toBe('L train planned work');
+    expect(byStation.get('C')).toEqual([]);
+  });
+
+  it('does not duplicate an alert for a station when it matches via multiple routes', () => {
+    const entities = [alertEntity(['N', 'Q'], 'Northbound delays near 57 St', 'SIGNIFICANT_DELAYS')];
+    const stations = [{ id: 'A', routes: ['N', 'Q'] }]; // both routes match the same alert
+    const byStation = transformAlertsByStation(entities, stations);
+    expect(byStation.get('A')).toHaveLength(1);
+  });
+
+  it('matches the per-station transformAlerts result for the same fixtures', () => {
+    const entities = [
+      alertEntity(['N', 'Q'], 'Northbound delays near 57 St', 'SIGNIFICANT_DELAYS'),
+      alertEntity(['L'], 'L train planned work'),
+      alertEntity(['1'], 'Elevator out at station'),
+      alertEntity(['1'], ''),
+    ];
+    const stations = [
+      { id: 'A', routes: ['1', 'N'] },
+      { id: 'B', routes: ['L'] },
+      { id: 'C', routes: ['7'] },
+    ];
+    const byStation = transformAlertsByStation(entities, stations);
+    for (const s of stations) {
+      expect(byStation.get(s.id)).toEqual(transformAlerts(entities, s.routes));
+    }
+  });
+
+  it('returns an empty array for every requested station id, even with no entities', () => {
+    const byStation = transformAlertsByStation([], [{ id: 'A', routes: ['1'] }, { id: 'B', routes: ['2'] }]);
+    expect(byStation.get('A')).toEqual([]);
+    expect(byStation.get('B')).toEqual([]);
   });
 });

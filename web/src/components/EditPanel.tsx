@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import type { SearchResult, NearbyStop, GeoResult } from '../api';
 import { searchStations, fetchNearbyBuses, addStation, removeStation, setWeather, geocode } from '../api';
 
+const DEBOUNCE_MS = 250;
+
 export function EditPanel({ code, onChanged }: { code: string; onChanged: () => void }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -10,29 +12,34 @@ export function EditPanel({ code, onChanged }: { code: string; onChanged: () => 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchSeq = useRef(0);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const [place, setPlace] = useState('');
   const [places, setPlaces] = useState<GeoResult[]>([]);
   const placeSeq = useRef(0);
+  const placeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  async function onQueryChange(q: string) {
+  function onQueryChange(q: string) {
     setQuery(q);
-    // Bump the sequence on every change so a slower, older in-flight response
-    // can't overwrite the results of a newer query (out-of-order responses).
-    const seq = ++searchSeq.current;
+    clearTimeout(searchTimer.current);
     if (!q.trim()) {
       setResults([]);
       return;
     }
-    try {
-      setError(null);
-      const found = await searchStations(q);
-      if (seq !== searchSeq.current) return;
-      setResults(found);
-    } catch {
-      if (seq !== searchSeq.current) return;
-      setError('Search failed. Try again.');
-    }
+    // Bump the sequence on every change so a slower, older in-flight response
+    // can't overwrite the results of a newer query (out-of-order responses).
+    const seq = ++searchSeq.current;
+    searchTimer.current = setTimeout(async () => {
+      try {
+        setError(null);
+        const found = await searchStations(q);
+        if (seq !== searchSeq.current) return;
+        setResults(found);
+      } catch {
+        if (seq !== searchSeq.current) return;
+        setError('Search failed. Try again.');
+      }
+    }, DEBOUNCE_MS);
   }
 
   async function onPickStation(station: SearchResult) {
@@ -72,22 +79,25 @@ export function EditPanel({ code, onChanged }: { code: string; onChanged: () => 
     }
   }
 
-  async function onPlaceChange(q: string) {
+  function onPlaceChange(q: string) {
     setPlace(q);
-    const seq = ++placeSeq.current;
+    clearTimeout(placeTimer.current);
     if (!q.trim()) {
       setPlaces([]);
       return;
     }
-    try {
-      setError(null);
-      const found = await geocode(q);
-      if (seq !== placeSeq.current) return;
-      setPlaces(found);
-    } catch {
-      if (seq !== placeSeq.current) return;
-      setError('Location search failed. Try again.');
-    }
+    const seq = ++placeSeq.current;
+    placeTimer.current = setTimeout(async () => {
+      try {
+        setError(null);
+        const found = await geocode(q);
+        if (seq !== placeSeq.current) return;
+        setPlaces(found);
+      } catch {
+        if (seq !== placeSeq.current) return;
+        setError('Location search failed. Try again.');
+      }
+    }, DEBOUNCE_MS);
   }
 
   async function onPickPlace(p: GeoResult) {

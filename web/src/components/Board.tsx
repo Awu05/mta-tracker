@@ -37,7 +37,6 @@ export function Board({
         onToggleEdit={onToggleEdit}
         forecastOpen={forecastOpen}
         onToggleForecast={() => setForecastOpen((o) => !o)}
-        boardCode={boardCode}
       />
       {editMode && <EditPanel code={boardCode} onChanged={onChanged} />}
       {board.weather && <Forecast weather={board.weather} open={forecastOpen} />}

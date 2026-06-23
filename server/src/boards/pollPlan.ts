@@ -1,7 +1,7 @@
 import type { Board } from '../types';
 import { roundCoord } from '../weatherCache';
 
-export interface PollPlan {
+interface PollPlan {
   subwayIds: string[];
   busCodes: string[];
   locations: { lat: number; lon: number }[];

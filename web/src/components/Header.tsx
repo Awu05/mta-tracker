@@ -11,7 +11,6 @@ interface Props {
   onToggleEdit: () => void;
   forecastOpen?: boolean;
   onToggleForecast?: () => void;
-  boardCode?: string;
 }
 
 export function Header({
@@ -23,7 +22,6 @@ export function Header({
   onToggleEdit,
   forecastOpen = true,
   onToggleForecast = () => {},
-  boardCode,
 }: Props) {
   return (
     <div className="board-top">

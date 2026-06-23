@@ -1,8 +1,7 @@
 import type { BoardCache } from '../cache';
-import type { Alert } from '../types';
 import { feedsForRoutes, feedUrl, ALERTS_URL } from './feedUrls';
 import { transformArrivalsByStation } from './transform';
-import { transformAlerts } from './alerts';
+import { transformAlertsByStation } from './alerts';
 import { getRouteStyle, stopName } from '../staticGtfs';
 
 export type DecodeFn = (bytes: Uint8Array) => { entity?: unknown[] };
@@ -82,8 +81,8 @@ export async function pollAlerts(
     return; // do not overwrite cache; keep last-good alerts
   }
 
+  const byStation = transformAlertsByStation(alertEntities as never[], stations);
   for (const station of stations) {
-    const alerts: Alert[] = transformAlerts(alertEntities as never[], station.routes);
-    cache.setAlerts(station.id, alerts);
+    cache.setAlerts(station.id, byStation.get(station.id) ?? []);
   }
 }
