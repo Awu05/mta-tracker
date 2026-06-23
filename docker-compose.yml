@@ -1,10 +1,10 @@
 services:
   mta-tracker:
-    # Prebuilt multi-arch image on Docker Hub (arm64 + arm/v7) — pull it on
+    # Prebuilt multi-arch image on GHCR (amd64 + arm64 + arm/v7) — pull it on
     # low-power hosts (e.g. a Pi Zero) instead of building locally:
     #   docker compose pull && docker compose up -d
     # `build: .` is kept so you can still build from source on a capable machine.
-    image: awu05/mta-tracker:latest
+    image: ghcr.io/awu05/mta-tracker:latest
     build: .
     restart: unless-stopped
     ports:
