@@ -15,4 +15,13 @@ describe('WeatherCache', () => {
     expect(c.get(40.75801, -73.98549)?.tempF).toBe(70); // same to 3dp
     expect(c.get(41, -73)).toBeNull();
   });
+
+  it('retain() evicts locations not in the keep list', () => {
+    const c = new WeatherCache();
+    c.set(40.758, -73.985, W(70));
+    c.set(41, -73.5, W(50));
+    c.retain([{ lat: 40.758, lon: -73.985 }]);
+    expect(c.get(40.758, -73.985)?.tempF).toBe(70);
+    expect(c.get(41, -73.5)).toBeNull();
+  });
 });

@@ -80,11 +80,13 @@ export function EditPanel({ code, onChanged }: { code: string; onChanged: () => 
       return;
     }
     try {
+      setError(null);
       const found = await geocode(q);
       if (seq !== placeSeq.current) return;
       setPlaces(found);
     } catch {
-      /* ignore */
+      if (seq !== placeSeq.current) return;
+      setError('Location search failed. Try again.');
     }
   }
 
@@ -105,9 +107,14 @@ export function EditPanel({ code, onChanged }: { code: string; onChanged: () => 
 
   function useMyLocation() {
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((pos) => {
-      void onPickPlace({ name: 'Current location', admin1: '', country: '', lat: pos.coords.latitude, lon: pos.coords.longitude });
-    });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        void onPickPlace({ name: 'Current location', admin1: '', country: '', lat: pos.coords.latitude, lon: pos.coords.longitude });
+      },
+      () => {
+        setError('Could not get your location.');
+      },
+    );
   }
 
   function onDone() {

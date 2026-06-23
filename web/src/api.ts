@@ -4,11 +4,27 @@ export interface SearchResult { id: string; name: string; routes: string[] }
 export interface NearbyStop { code: string; name: string; routes: string[]; distanceMeters: number; alreadyAdded: boolean }
 export interface GeoResult { name: string; admin1: string; country: string; lat: number; lon: number }
 
+// Same alphabet/length as server/src/boards/code.ts — keep these in sync.
+const CODE_ALPHABET = '23456789abcdefghijkmnpqrstuvwxyz';
+const CODE_LENGTH = 8;
+const CODE_PATH_RE = new RegExp(`^/b/([${CODE_ALPHABET}]{${CODE_LENGTH}})`);
+
+function mintCode(): string {
+  let out = '';
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const bytes = crypto.getRandomValues(new Uint8Array(CODE_LENGTH));
+    for (let i = 0; i < CODE_LENGTH; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+  } else {
+    for (let i = 0; i < CODE_LENGTH; i++) out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
+  }
+  return out;
+}
+
 // Read the board code from /b/:code; in dev (or a bare load) mint one and update the URL.
 export function getBoardCode(): string {
-  const m = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]+)/);
+  const m = window.location.pathname.match(CODE_PATH_RE);
   if (m) return m[1];
-  const code = Math.random().toString(36).slice(2, 10);
+  const code = mintCode();
   window.history.replaceState(null, '', `/b/${code}`);
   return code;
 }

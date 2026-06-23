@@ -16,4 +16,11 @@ export class WeatherCache {
   get(lat: number, lon: number): Weather | null {
     return this.byLoc.get(key(lat, lon)) ?? null;
   }
+  /** Drop any cached location not in `locations`, so weather for dropped board locations doesn't linger forever. */
+  retain(locations: { lat: number; lon: number }[]): void {
+    const keep = new Set(locations.map((l) => key(l.lat, l.lon)));
+    for (const k of this.byLoc.keys()) {
+      if (!keep.has(k)) this.byLoc.delete(k);
+    }
+  }
 }

@@ -31,9 +31,18 @@ async function main() {
     GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(bytes) as { entity?: unknown[] };
 
   // Build the union poll plan from active boards and reconcile the shared cache.
+  // Memoized with a short TTL so coincident poll cycles (arrivals/alerts/bus/weather)
+  // share one repo read instead of each independently re-querying activeBoards().
+  const PLAN_TTL_MS = 5000;
+  let cachedPlan: ReturnType<typeof buildPollPlan> | null = null;
+  let cachedPlanAtMs = 0;
   async function plan() {
+    const now = Date.now();
+    if (cachedPlan && now - cachedPlanAtMs < PLAN_TTL_MS) return cachedPlan;
     const boards = await repo.activeBoards(config.activeTtlMs);
-    return buildPollPlan(boards);
+    cachedPlan = buildPollPlan(boards);
+    cachedPlanAtMs = now;
+    return cachedPlan;
   }
 
   function subwayMetas(ids: string[]): StationMeta[] {
@@ -55,6 +64,11 @@ async function main() {
       const p = await plan();
       const subway = subwayMetas(p.subwayIds);
       const bus: StationMeta[] = p.busCodes.map((id) => ({ id, name: id, type: 'bus' as const }));
+      // pollArrivalsCycle is the SINGLE owner of BoardCache membership: it is the only
+      // cycle that calls cache.reconcile(), and it includes bus codes (not just subway)
+      // so bus stations aren't evicted between bus polls. This must keep running at the
+      // shortest feed interval (it ties with the bus cycle at FEED_REFRESH_SEC) so cache
+      // membership stays current with active boards.
       cache.reconcile([...subway, ...bus]);
       const stations = subway.map((m) => ({ id: m.id, name: m.name, routes: getStation(m.id).routes }));
       await pollArrivals(cache, stations, decode);
@@ -101,6 +115,7 @@ async function main() {
     try {
       const p = await plan();
       const locations = p.locations.length > 0 ? p.locations : [defaults];
+      weatherCache.retain(locations);
       await Promise.all(
         locations.map(async (loc) => {
           try {

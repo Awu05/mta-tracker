@@ -35,6 +35,17 @@ describe('GET /api/boards/:code', () => {
     const res = await request(app).get('/api/boards/abc123');
     expect(res.body.weather.tempF).toBe(71);
   });
+
+  it('200s (not a hang/500) when a persisted subway entry has an unknown GTFS id', async () => {
+    const { app, repo } = makeApp();
+    await repo.getOrCreate('x', { lat: 40.75, lon: -73.99 });
+    await repo.addEntry('x', { id: 'GHOST', type: 'subway' });
+    const res = await request(app).get('/api/boards/x');
+    expect(res.status).toBe(200);
+    const ghost = res.body.stations.find((s: { station: { id: string } }) => s.station.id === 'GHOST');
+    expect(ghost).toBeDefined();
+    expect(ghost.stale).toBe(true);
+  });
 });
 
 describe('POST /api/boards/:code/stations', () => {
@@ -67,6 +78,18 @@ describe('DELETE /api/boards/:code/stations', () => {
     await request(app).post('/api/boards/x/stations').send({ id: '127', type: 'subway' });
     expect((await request(app).delete('/api/boards/x/stations').send({ id: '127', type: 'subway' })).status).toBe(200);
     expect((await request(app).delete('/api/boards/x/stations').send({ id: '127', type: 'subway' })).status).toBe(404);
+  });
+
+  it('400 on an invalid type', async () => {
+    const { app } = makeApp();
+    const res = await request(app).delete('/api/boards/x/stations').send({ id: '127', type: 'train' });
+    expect(res.status).toBe(400);
+  });
+
+  it('400 when id is missing', async () => {
+    const { app } = makeApp();
+    const res = await request(app).delete('/api/boards/x/stations').send({ type: 'subway' });
+    expect(res.status).toBe(400);
   });
 });
 

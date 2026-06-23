@@ -90,5 +90,6 @@ export async function createPgRepo(databaseUrl: string): Promise<PgBoardsRepo> {
       await new Promise((r) => setTimeout(r, 1500));
     }
   }
+  await pool.end();
   throw new Error(`Could not connect to Postgres after retries: ${String(lastErr)}`);
 }

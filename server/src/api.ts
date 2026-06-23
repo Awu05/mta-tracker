@@ -6,7 +6,7 @@ import type { BoardEntry } from './types';
 import { searchStations, getStation } from './staticGtfs';
 import { fetchNearbyBusStops } from './feeds/bus';
 import { geocodeLocation } from './weather';
-import { generateCode } from './boards/code';
+import { generateCode, isValidCode } from './boards/code';
 
 export interface AppDeps {
   cache: BoardCache;
@@ -50,13 +50,18 @@ export function createApp(deps: AppDeps): Express {
     let added = false;
     for (const e of board.entries) {
       if (cache.has(e.id)) continue;
-      added = true;
       if (e.type === 'subway') {
-        const info = getStation(e.id);
+        let info;
+        try {
+          info = getStation(e.id);
+        } catch {
+          continue;
+        }
         cache.addStation({ id: e.id, name: info.name, type: 'subway' });
       } else {
         cache.addStation({ id: e.id, name: e.id, type: 'bus' });
       }
+      added = true;
     }
     if (added) onBoardChange?.();
     const weather = weatherCache.get(board.weatherLat, board.weatherLon);
@@ -102,8 +107,16 @@ export function createApp(deps: AppDeps): Express {
 
   app.delete('/api/boards/:code/stations', async (req, res) => {
     const code = req.params.code;
-    const { id, type } = (req.body ?? {}) as { id?: string; type?: 'subway' | 'bus' };
-    const removed = await repo.removeEntry(code, type as 'subway' | 'bus', id ?? '');
+    const { id, type } = (req.body ?? {}) as { id?: string; type?: string };
+    if (type !== 'subway' && type !== 'bus') {
+      res.status(400).json({ error: 'type must be "subway" or "bus"' });
+      return;
+    }
+    if (!id) {
+      res.status(400).json({ error: 'id is required' });
+      return;
+    }
+    const removed = await repo.removeEntry(code, type, id);
     if (!removed) {
       res.status(404).json({ error: 'not found' });
       return;
@@ -168,6 +181,10 @@ export function createApp(deps: AppDeps): Express {
 
   if (staticDir) {
     app.get('/b/:code', (req, res) => {
+      if (!isValidCode(req.params.code)) {
+        res.redirect(302, '/');
+        return;
+      }
       res.setHeader('Set-Cookie', `board=${encodeURIComponent(req.params.code)}; ${COOKIE_MAX_AGE}`);
       res.sendFile('index.html', { root: staticDir });
     });

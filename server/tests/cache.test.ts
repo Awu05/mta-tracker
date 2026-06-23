@@ -33,4 +33,50 @@ describe('BoardCache.reconcile', () => {
     expect(cache.has('635')).toBe(true);
     expect(cache.has('127')).toBe(false);
   });
+
+  it('preserves data for a retained station while adding new ones', () => {
+    const cache = new BoardCache([], 90);
+    cache.addStation({ id: '127', name: 'Times Sq', type: 'subway' });
+    cache.setDirections('127', [{ direction: 'N', label: 'Uptown', arrivals: [] }], 1000);
+    cache.reconcile([{ id: '127', name: 'Times Sq', type: 'subway' }, { id: '635', name: 'Union Sq', type: 'subway' }]);
+
+    const model = cache.getBoardModel(
+      [{ id: '127', type: 'subway' }, { id: '635', type: 'subway' }],
+      null,
+      1000,
+    );
+    const times = model.stations.find((s) => s.station.id === '127');
+    expect(times?.directions).toEqual([{ direction: 'N', label: 'Uptown', arrivals: [] }]);
+    expect(times?.stale).toBe(false);
+    expect(cache.has('635')).toBe(true);
+  });
+});
+
+describe('BoardCache.removeStation', () => {
+  it('removes a known station', () => {
+    const cache = new BoardCache([], 90);
+    cache.addStation({ id: '127', name: 'Times Sq', type: 'subway' });
+    cache.removeStation('127');
+    expect(cache.has('127')).toBe(false);
+  });
+
+  it('is a no-op for an unknown id', () => {
+    const cache = new BoardCache([], 90);
+    expect(() => cache.removeStation('NOPE')).not.toThrow();
+    expect(cache.has('NOPE')).toBe(false);
+  });
+});
+
+describe('BoardCache.addStation', () => {
+  it('is idempotent: adding the same id twice does not duplicate or reset it', () => {
+    const cache = new BoardCache([], 90);
+    cache.addStation({ id: '127', name: 'Times Sq', type: 'subway' });
+    cache.setDirections('127', [{ direction: 'N', label: 'Uptown', arrivals: [] }], 1000);
+    cache.addStation({ id: '127', name: 'Times Sq (renamed)', type: 'subway' });
+
+    const model = cache.getBoardModel([{ id: '127', type: 'subway' }], null, 1000);
+    expect(model.stations).toHaveLength(1);
+    expect(model.stations[0].directions).toEqual([{ direction: 'N', label: 'Uptown', arrivals: [] }]);
+    expect(model.stations[0].station.name).toBe('Times Sq'); // unchanged by the second addStation
+  });
 });

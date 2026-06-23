@@ -5,10 +5,11 @@ import { BoardCache } from '../src/cache';
 import { WeatherCache } from '../src/weatherCache';
 import { MemoryBoardsRepo } from '../src/boards/memoryRepo';
 
-function makeApp() {
+function makeApp(over: Partial<Parameters<typeof createApp>[0]> = {}) {
   return createApp({
     cache: new BoardCache([], 90), repo: new MemoryBoardsRepo(), weatherCache: new WeatherCache(),
     defaultLat: 40.75, defaultLon: -73.99, displayMode: 'auto', compact: false, mtaApiKey: '',
+    ...over,
   });
 }
 
@@ -24,5 +25,17 @@ describe('routing', () => {
     const res = await request(makeApp()).get('/').set('Cookie', 'board=mycode12');
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/b/mycode12');
+  });
+
+  it('GET /b/<invalid code> redirects to / without persisting a junk cookie', async () => {
+    const res = await request(makeApp({ staticDir: __dirname })).get('/b/INVALID!!');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/');
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
+  it('GET /b/<valid code> sets the cookie and serves the app', async () => {
+    const res = await request(makeApp({ staticDir: __dirname })).get('/b/abcdefgh');
+    expect(res.headers['set-cookie']?.[0]).toMatch(/^board=abcdefgh/);
   });
 });
