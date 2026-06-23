@@ -12,8 +12,6 @@ export interface AppDeps {
   cache: BoardCache;
   repo: BoardsRepo;
   weatherCache: WeatherCache;
-  defaultLat: number;
-  defaultLon: number;
   displayMode: string;
   compact: boolean;
   mtaApiKey: string;
@@ -38,8 +36,7 @@ function readCookie(header: string | undefined, name: string): string | null {
 const COOKIE_MAX_AGE = 'Max-Age=31536000; Path=/; SameSite=Lax';
 
 export function createApp(deps: AppDeps): Express {
-  const { cache, repo, weatherCache, defaultLat, defaultLon, displayMode, compact, mtaApiKey, onBoardChange, onWeatherChange, fetchFn, staticDir } = deps;
-  const defaults = { lat: defaultLat, lon: defaultLon };
+  const { cache, repo, weatherCache, displayMode, compact, mtaApiKey, onBoardChange, onWeatherChange, fetchFn, staticDir } = deps;
 
   const app = express();
   app.use(express.json());
@@ -48,7 +45,7 @@ export function createApp(deps: AppDeps): Express {
 
   app.get('/api/boards/:code', async (req, res) => {
     const code = req.params.code;
-    const board = await repo.getOrCreate(code, defaults);
+    const board = await repo.getOrCreate(code);
     await repo.touch(code);
     // Register stations so they appear immediately; poll fills data within a cycle.
     let added = false;
@@ -68,7 +65,9 @@ export function createApp(deps: AppDeps): Express {
       added = true;
     }
     if (added) onBoardChange?.();
-    const weather = weatherCache.get(board.weatherLat, board.weatherLon);
+    const weather = board.weatherLat !== null && board.weatherLon !== null
+      ? weatherCache.get(board.weatherLat, board.weatherLon)
+      : null;
     const model = cache.getBoardModel(board.entries, weather, Date.now());
     res.json({ ...model, displayMode, compact, code });
   });
@@ -98,7 +97,7 @@ export function createApp(deps: AppDeps): Express {
         return;
       }
     }
-    await repo.getOrCreate(code, defaults);
+    await repo.getOrCreate(code);
     const added = await repo.addEntry(code, { id, type });
     if (!added) {
       res.status(409).json({ error: 'already added' });
@@ -135,7 +134,7 @@ export function createApp(deps: AppDeps): Express {
       res.status(400).json({ error: 'lat/lon out of range' });
       return;
     }
-    await repo.getOrCreate(code, defaults);
+    await repo.getOrCreate(code);
     await repo.setWeather(code, lat, lon);
     // Warm the cache for the new location before responding so the client's
     // immediate reload shows weather instead of a gap until the next poll.
@@ -171,7 +170,7 @@ export function createApp(deps: AppDeps): Express {
     }
     try {
       const stops = await fetchNearbyBusStops(info.lat, info.lon, mtaApiKey, fetchFn);
-      const board = code ? await repo.getOrCreate(code, defaults) : null;
+      const board = code ? await repo.getOrCreate(code) : null;
       const busIds = new Set((board?.entries ?? []).filter((e) => e.type === 'bus').map((e) => e.id));
       res.json(stops.map((s) => ({ ...s, alreadyAdded: busIds.has(s.code) })));
     } catch (err) {

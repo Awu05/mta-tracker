@@ -13,10 +13,10 @@ export class MemoryBoardsRepo implements BoardsRepo {
     return { code: r.code, entries: r.entries.map((e) => ({ ...e })), weatherLat: r.weatherLat, weatherLon: r.weatherLon };
   }
 
-  async getOrCreate(code: string, defaults: { lat: number; lon: number }): Promise<Board> {
+  async getOrCreate(code: string): Promise<Board> {
     let r = this.rows.get(code);
     if (!r) {
-      r = { code, entries: [], weatherLat: defaults.lat, weatherLon: defaults.lon, lastSeenMs: this.now() };
+      r = { code, entries: [], weatherLat: null, weatherLon: null, lastSeenMs: this.now() };
       this.rows.set(code, r);
     }
     return this.snapshot(r);

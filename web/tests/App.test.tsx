@@ -136,4 +136,18 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
+
+  it('shows the board-empty placeholder when the board has no stations', async () => {
+    const emptyBoard = { ...board, stations: [] };
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.startsWith('/api/boards/')) {
+        return Promise.resolve({ ok: true, json: async () => emptyBoard });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    }));
+    render(<App />);
+    // The welcome popup overlay also renders over the board, but the placeholder is in
+    // the DOM behind it — query by text searches the whole DOM regardless of overlay.
+    await waitFor(() => expect(screen.getByText(/your board is empty/i)).toBeInTheDocument());
+  });
 });

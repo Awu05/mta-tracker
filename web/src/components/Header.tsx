@@ -60,8 +60,12 @@ export function Header({
       </div>
       <div className="meta">
         <Clock />
-        {weather && (
+        {weather ? (
           <WeatherWidget weather={weather} forecastOpen={forecastOpen} onToggle={onToggleForecast} />
+        ) : (
+          <button type="button" className="weather-placeholder" onClick={onToggleEdit} title="Add a weather location">
+            ＋ Weather
+          </button>
         )}
       </div>
     </div>

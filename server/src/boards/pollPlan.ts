@@ -17,9 +17,11 @@ export function buildPollPlan(boards: Board[]): PollPlan {
       if (e.type === 'subway') subway.add(e.id);
       else bus.add(e.id);
     }
-    const lat = roundCoord(b.weatherLat);
-    const lon = roundCoord(b.weatherLon);
-    locs.set(`${lat},${lon}`, { lat, lon });
+    if (b.weatherLat !== null && b.weatherLon !== null) {
+      const lat = roundCoord(b.weatherLat);
+      const lon = roundCoord(b.weatherLon);
+      locs.set(`${lat},${lon}`, { lat, lon });
+    }
   }
 
   return { subwayIds: [...subway], busCodes: [...bus], locations: [...locs.values()] };

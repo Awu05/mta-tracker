@@ -51,9 +51,9 @@ export function WelcomeModal({
           lives at its own link — bookmark it or use “Copy link” to reopen it here or on another device.
         </p>
 
-        {hasAnything && (
-          <div className="welcome-summary">
-            <div className="welcome-summary-title">On your board</div>
+        <div className="welcome-summary">
+          <div className="welcome-summary-title">On your board</div>
+          {hasAnything ? (
             <ul className="welcome-added">
               {stations.map((s) => (
                 <li key={`${s.type}:${s.station.id}`} className="welcome-added-item">
@@ -72,8 +72,10 @@ export function WelcomeModal({
                 </li>
               )}
             </ul>
-          </div>
-        )}
+          ) : (
+            <p className="welcome-empty">Nothing yet — add stations and a weather location and they’ll appear here.</p>
+          )}
+        </div>
 
         <EditPanel code={code} onChanged={onChanged} />
         <button type="button" className="modal-skip" onClick={onClose}>

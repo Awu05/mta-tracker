@@ -8,12 +8,14 @@ maybe('PgBoardsRepo (integration, needs DATABASE_URL)', () => {
   it('persists boards, entries, weather, and TTL filtering', async () => {
     const repo = await createPgRepo(url as string);
     const code = `test_${Date.now()}`;
-    const b = await repo.getOrCreate(code, { lat: 40.75, lon: -73.99 });
+    const b = await repo.getOrCreate(code);
     expect(b.entries).toEqual([]);
+    expect(b.weatherLat).toBe(null);
+    expect(b.weatherLon).toBe(null);
     expect(await repo.addEntry(code, { id: '127', type: 'subway' })).toBe(true);
     expect(await repo.addEntry(code, { id: '127', type: 'subway' })).toBe(false);
     await repo.setWeather(code, 41.0, -73.5);
-    const again = await repo.getOrCreate(code, { lat: 0, lon: 0 });
+    const again = await repo.getOrCreate(code);
     expect(again.entries).toEqual([{ id: '127', type: 'subway' }]);
     expect([again.weatherLat, again.weatherLon]).toEqual([41, -73.5]);
     await repo.touch(code);

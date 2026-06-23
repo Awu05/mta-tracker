@@ -11,7 +11,6 @@ function makeApp(over: Partial<Parameters<typeof createApp>[0]> = {}) {
   const weatherCache = new WeatherCache();
   const app = createApp({
     cache, repo, weatherCache,
-    defaultLat: 40.75, defaultLon: -73.99,
     displayMode: 'auto', compact: false, mtaApiKey: 'key',
     ...over,
   });
@@ -30,7 +29,9 @@ describe('GET /api/boards/:code', () => {
   });
 
   it('returns the board weather from the WeatherCache at the board location', async () => {
-    const { app, weatherCache } = makeApp();
+    const { app, repo, weatherCache } = makeApp();
+    await repo.getOrCreate('abc123');
+    await repo.setWeather('abc123', 40.75, -73.99);
     weatherCache.set(40.75, -73.99, { tempF: 71, condition: 'Clear', icon: 'clear', hourly: [], daily: [] });
     const res = await request(app).get('/api/boards/abc123');
     expect(res.body.weather.tempF).toBe(71);
@@ -38,13 +39,20 @@ describe('GET /api/boards/:code', () => {
 
   it('200s (not a hang/500) when a persisted subway entry has an unknown GTFS id', async () => {
     const { app, repo } = makeApp();
-    await repo.getOrCreate('x', { lat: 40.75, lon: -73.99 });
+    await repo.getOrCreate('x');
     await repo.addEntry('x', { id: 'GHOST', type: 'subway' });
     const res = await request(app).get('/api/boards/x');
     expect(res.status).toBe(200);
     const ghost = res.body.stations.find((s: { station: { id: string } }) => s.station.id === 'GHOST');
     expect(ghost).toBeDefined();
     expect(ghost.stale).toBe(true);
+  });
+
+  it('a freshly-created board returns weather: null (no default)', async () => {
+    const { app } = makeApp();
+    const res = await request(app).get('/api/boards/fresh1');
+    expect(res.status).toBe(200);
+    expect(res.body.weather).toBe(null);
   });
 });
 
@@ -98,7 +106,7 @@ describe('PUT /api/boards/:code/weather', () => {
     const { app, repo } = makeApp();
     await request(app).get('/api/boards/x'); // create
     expect((await request(app).put('/api/boards/x/weather').send({ lat: 41, lon: -73.5 })).status).toBe(200);
-    expect((await repo.getOrCreate('x', { lat: 0, lon: 0 })).weatherLat).toBe(41);
+    expect((await repo.getOrCreate('x')).weatherLat).toBe(41);
     expect((await request(app).put('/api/boards/x/weather').send({ lat: 999, lon: 0 })).status).toBe(400);
   });
 
@@ -108,7 +116,7 @@ describe('PUT /api/boards/:code/weather', () => {
       // Mirror index.ts: warm the cache for the new location synchronously.
       onWeatherChange: (lat, lon) => { weatherCache.set(lat, lon, weather); },
     });
-    await request(app).get('/api/boards/x'); // create at default location
+    await request(app).get('/api/boards/x'); // create (no weather location yet)
     await request(app).put('/api/boards/x/weather').send({ lat: 41, lon: -73.5 });
     const res = await request(app).get('/api/boards/x');
     expect(res.body.weather?.tempF).toBe(60);

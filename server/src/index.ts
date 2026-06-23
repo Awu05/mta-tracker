@@ -18,7 +18,6 @@ async function main() {
   const config = loadConfig();
   const cache = new BoardCache([], config.staleThresholdSec);
   const weatherCache = new WeatherCache();
-  const defaults = { lat: config.weatherLat, lon: config.weatherLon };
 
   const repo: BoardsRepo = config.databaseUrl
     ? await createPgRepo(config.databaseUrl)
@@ -114,7 +113,7 @@ async function main() {
     weatherInFlight = true;
     try {
       const p = await plan();
-      const locations = p.locations.length > 0 ? p.locations : [defaults];
+      const locations = p.locations; // only locations users actually set
       weatherCache.retain(locations);
       await Promise.all(
         locations.map(async (loc) => {
@@ -162,7 +161,6 @@ async function main() {
 
   const app = createApp({
     cache, repo, weatherCache,
-    defaultLat: config.weatherLat, defaultLon: config.weatherLon,
     displayMode: config.displayMode, compact: config.compact,
     mtaApiKey: config.mtaApiKey, onBoardChange, onWeatherChange, staticDir,
   });

@@ -43,6 +43,14 @@ export function Board({
       {board.stations.map((s) => (
         <StationSection key={s.station.id} board={s} compact={compact} editMode={editMode} onRemove={onRemove} />
       ))}
+      {board.stations.length === 0 && (
+        <div className="board-empty">
+          <p className="board-empty-title">Your board is empty</p>
+          <p className="board-empty-hint">
+            Add subway and bus stations and a weather location to get started — tap ✎ Edit above, or reload to reopen the welcome popup.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

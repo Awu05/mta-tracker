@@ -1,8 +1,8 @@
 import type { Board, BoardEntry } from '../types';
 
 export interface BoardsRepo {
-  /** Fetch a board; create an empty one at `defaults` if the code is unknown. */
-  getOrCreate(code: string, defaults: { lat: number; lon: number }): Promise<Board>;
+  /** Fetch a board; create an empty one (no weather location) if the code is unknown. */
+  getOrCreate(code: string): Promise<Board>;
   /** Mark the board as recently seen. */
   touch(code: string): Promise<void>;
   /** Append the entry if absent; false if it was already present. */

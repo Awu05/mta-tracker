@@ -298,3 +298,13 @@ body {
 .welcome-tag-bus { background: #1c7c4a; }
 .welcome-tag-weather { background: #6b4fc4; }
 
+.weather-placeholder {
+  border: 1px dashed var(--divider); border-radius: 6px; background: none;
+  color: var(--muted); cursor: pointer; padding: 4px 10px; font-size: 13px;
+}
+.weather-placeholder:hover { color: var(--text); border-color: var(--muted); }
+.board-empty { text-align: center; color: var(--muted); padding: 48px 16px; }
+.board-empty-title { font-size: 18px; font-weight: 700; color: var(--dim); margin: 0 0 8px; }
+.board-empty-hint { font-size: 14px; margin: 0; line-height: 1.5; }
+.welcome-empty { margin: 0; font-size: 14px; color: var(--muted); }
+

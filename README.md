@@ -27,7 +27,7 @@ Click the weather in the top bar to expand a full-width forecast (next 12 hours 
 - 🔎 **Add stations from the app** — an Edit mode lets you search a station by name and add it (no IDs), then pick from auto-suggested **nearby bus stops**. The list is saved on the server (per board) and shared by every display that opens that board's URL.
 - ⚠️ **Service alerts** per station, with severity (delay / suspended / info) inferred from the feed. They start minimized (severe alerts + a count summary) and expand on click.
 - 🎨 **Official line bullets** (correct MTA colors) for quick scanning.
-- 🌤️ **Weather + clock** in a shared top bar — a condition icon with the current temp; click it to expand a **full-width forecast** (next 12 hours + next 5 days, with precip chance) styled like the departure tables.
+- 🌤️ **Weather + clock** in a shared top bar — a condition icon with the current temp; click it to expand a **full-width forecast** (next 12 hours + next 5 days, with precip chance) styled like the departure tables. There's no server-wide default location: weather stays hidden (with a "＋ Weather" prompt) until you set one per board.
 - 🖥️ **Kiosk or phone** layouts via a single `DISPLAY_MODE` flag (responsive either way).
 - 🧱 **Resilient**: failed feed fetches keep the last-good data and show a "stale" indicator instead of blanking; per-feed isolation; fetch timeouts.
 - 🐳 **Dockerized**: multi-stage build, non-root runtime, healthcheck, `restart: unless-stopped`.
@@ -36,7 +36,7 @@ Click the weather in the top bar to expand a full-width forecast (next 12 hours 
 ## Quick start (Docker)
 
 ```bash
-cp .env.example .env       # optional: set WEATHER_LAT/LON default, ACTIVE_TTL_DAYS, DISPLAY_MODE
+cp .env.example .env       # optional: set ACTIVE_TTL_DAYS, DISPLAY_MODE, etc.
 docker compose up -d --build
 # open http://<host-ip>:8080
 ```
@@ -62,7 +62,9 @@ identified by the code in `/b/<code>`:
 - Anyone with the `/b/<code>` URL can view and edit that board — there's no login. Codes are
   short random strings, not secret-strength, so treat the URL as **unguessable but
   unauthenticated**: don't rely on it to keep anything private.
-- Each board has its own stations, bus stops, and weather location, all stored in Postgres.
+- Each board has its own stations, bus stops, and weather location, all stored in Postgres. A
+  brand-new board starts with **no weather location** — weather stays hidden until you set one
+  in the UI (there's no server-wide default).
 - A kiosk or e-ink panel just needs to open one specific `/b/<code>` URL (e.g. via the kiosk
   browser flag below) — it'll keep showing that board on every refresh regardless of cookies.
 - Boards that haven't been opened in a while (`ACTIVE_TTL_DAYS`, default 7) stop being polled
@@ -80,7 +82,6 @@ All configuration is environment variables (see [`.env.example`](.env.example)):
 | `ACTIVE_TTL_DAYS` | Boards not opened within this many days stop being polled in the background (default `7`). They still work fine when reopened. |
 | `DISPLAY_MODE` | `kiosk` (large type for a wall display) \| `phone` \| `auto` |
 | `COMPACT` | Default compact view (`true`/`false`) — denser layout, fewer arrivals, severe-only alerts. Overridable per device via `?compact=1`/`?compact=0`. See [Compact view](#compact-view). |
-| `WEATHER_LAT` / `WEATHER_LON` | **Default** weather location for newly created boards — each board can change its own location afterward via the location picker in Edit mode. |
 | `FEED_REFRESH_SEC` | Arrival feed poll interval (default `30`) |
 | `ALERTS_REFRESH_SEC` | Alerts feed poll interval (default `120` — alerts change slowly) |
 | `WEATHER_REFRESH_SEC` | Weather poll interval (default `600`) |
@@ -128,7 +129,7 @@ Click **✎ Edit** in the top bar. While editing you can:
 - **Add / remove nearby buses** — right after adding a station, a checklist of the **closest bus stops** (with their routes and distance) appears. Click anywhere on a row to toggle it: a green check adds the stop, unchecking removes it. Bus lookups need `MTA_API_KEY`.
 - **Remove** — each section shows an **×** to drop it from the board.
 - **Set the weather location** — search a city/zip or click "Use my location" to set this
-  board's weather, overriding the `WEATHER_LAT`/`WEATHER_LON` default.
+  board's weather. Weather stays hidden (a "＋ Weather" prompt shows instead) until you do.
 
 Changes are saved on the **server** in Postgres, keyed to this board's code, and shared by
 every display that opens the same `/b/<code>` URL — edit from your phone and the kiosk/e-ink

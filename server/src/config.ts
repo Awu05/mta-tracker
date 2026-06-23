@@ -24,8 +24,6 @@ export function loadConfig(env: Env = process.env): AppConfig {
 
   return {
     displayMode,
-    weatherLat: num(env, 'WEATHER_LAT', 40.7128),
-    weatherLon: num(env, 'WEATHER_LON', -74.006),
     feedRefreshSec: num(env, 'FEED_REFRESH_SEC', 30),
     alertsRefreshSec: num(env, 'ALERTS_REFRESH_SEC', 120),
     weatherRefreshSec: num(env, 'WEATHER_REFRESH_SEC', 600),

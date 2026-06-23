@@ -63,8 +63,6 @@ export interface BoardModel {
 
 export interface AppConfig {
   displayMode: 'kiosk' | 'phone' | 'auto';
-  weatherLat: number;
-  weatherLon: number;
   feedRefreshSec: number;
   alertsRefreshSec: number;
   weatherRefreshSec: number;
@@ -81,6 +79,6 @@ export interface BoardEntry { id: string; type: 'subway' | 'bus'; }
 export interface Board {
   code: string;
   entries: BoardEntry[];
-  weatherLat: number;
-  weatherLon: number;
+  weatherLat: number | null;
+  weatherLon: number | null;
 }

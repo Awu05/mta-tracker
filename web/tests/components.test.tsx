@@ -302,9 +302,33 @@ describe('components', () => {
     expect(screen.getByRole('button', { name: /done/i })).toBeInTheDocument();
   });
 
-  it('WelcomeModal shows no summary when nothing has been added yet', () => {
+  it('WelcomeModal shows a placeholder summary when nothing has been added yet', () => {
     render(<WelcomeModal code="c1" stations={[]} weather={null} onChanged={() => {}} onClose={() => {}} />);
-    expect(screen.queryByText('On your board')).not.toBeInTheDocument();
+    expect(screen.getByText('On your board')).toBeInTheDocument();
+    expect(screen.getByText(/nothing yet/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /skip for now/i })).toBeInTheDocument();
+  });
+
+  it('Header shows the weather placeholder when weather is null and calls onToggleEdit on click', () => {
+    const onToggleCompact = vi.fn();
+    const onToggleEdit = vi.fn();
+    render(
+      <Header weather={null} stale={false} compact={false} onToggleCompact={onToggleCompact} editMode={false} onToggleEdit={onToggleEdit} />
+    );
+    const placeholder = screen.getByRole('button', { name: /weather/i });
+    expect(placeholder).toBeInTheDocument();
+    fireEvent.click(placeholder);
+    expect(onToggleEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it('Header shows the weather widget (no placeholder) when weather is present', () => {
+    const onToggleCompact = vi.fn();
+    const onToggleEdit = vi.fn();
+    const weather: Weather = { tempF: 72, condition: 'Cloudy', icon: 'cloudy', hourly: [], daily: [] };
+    render(
+      <Header weather={weather} stale={false} compact={false} onToggleCompact={onToggleCompact} editMode={false} onToggleEdit={onToggleEdit} />
+    );
+    expect(screen.queryByRole('button', { name: /^＋ Weather$/i })).not.toBeInTheDocument();
+    expect(screen.getByText('72°')).toBeInTheDocument();
   });
 });

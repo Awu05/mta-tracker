@@ -17,43 +17,41 @@ describe('generateCode', () => {
 });
 
 describe('MemoryBoardsRepo', () => {
-  const DEFAULTS = { lat: 40.75, lon: -73.99 };
-
-  it('getOrCreate creates an empty board with the default location, then returns it', async () => {
+  it('getOrCreate creates an empty board with no weather location, then returns it', async () => {
     const repo = new MemoryBoardsRepo();
-    const a = await repo.getOrCreate('abc', DEFAULTS);
-    expect(a).toEqual({ code: 'abc', entries: [], weatherLat: 40.75, weatherLon: -73.99 });
+    const a = await repo.getOrCreate('abc');
+    expect(a).toEqual({ code: 'abc', entries: [], weatherLat: null, weatherLon: null });
     await repo.addEntry('abc', { id: '127', type: 'subway' });
-    const b = await repo.getOrCreate('abc', { lat: 0, lon: 0 }); // existing: defaults ignored
+    const b = await repo.getOrCreate('abc'); // existing: returns the same board
     expect(b.entries).toEqual([{ id: '127', type: 'subway' }]);
-    expect(b.weatherLat).toBe(40.75);
+    expect(b.weatherLat).toBe(null);
   });
 
   it('addEntry appends, dedupes (returns false), removeEntry removes', async () => {
     const repo = new MemoryBoardsRepo();
-    await repo.getOrCreate('x', DEFAULTS);
+    await repo.getOrCreate('x');
     expect(await repo.addEntry('x', { id: '127', type: 'subway' })).toBe(true);
     expect(await repo.addEntry('x', { id: '127', type: 'subway' })).toBe(false);
     expect(await repo.addEntry('x', { id: '127', type: 'bus' })).toBe(true); // same id, diff type
     expect(await repo.removeEntry('x', 'subway', '127')).toBe(true);
     expect(await repo.removeEntry('x', 'subway', '127')).toBe(false);
-    expect((await repo.getOrCreate('x', DEFAULTS)).entries).toEqual([{ id: '127', type: 'bus' }]);
+    expect((await repo.getOrCreate('x')).entries).toEqual([{ id: '127', type: 'bus' }]);
   });
 
   it('setWeather updates location', async () => {
     const repo = new MemoryBoardsRepo();
-    await repo.getOrCreate('x', DEFAULTS);
+    await repo.getOrCreate('x');
     await repo.setWeather('x', 41.1, -73.5);
-    const b = await repo.getOrCreate('x', DEFAULTS);
+    const b = await repo.getOrCreate('x');
     expect([b.weatherLat, b.weatherLon]).toEqual([41.1, -73.5]);
   });
 
   it('activeBoards returns only boards touched within the TTL', async () => {
     let t = 1_000_000;
     const repo = new MemoryBoardsRepo(() => t);
-    await repo.getOrCreate('old', DEFAULTS); // touched at t
+    await repo.getOrCreate('old'); // touched at t
     t += 10_000;
-    await repo.getOrCreate('new', DEFAULTS); // touched at t
+    await repo.getOrCreate('new'); // touched at t
     const active = await repo.activeBoards(5_000); // last 5s
     expect(active.map((b) => b.code)).toEqual(['new']);
   });

@@ -6,15 +6,17 @@ const SCHEMA = `
 CREATE TABLE IF NOT EXISTS boards (
   code        TEXT PRIMARY KEY,
   entries     JSONB NOT NULL DEFAULT '[]',
-  weather_lat DOUBLE PRECISION NOT NULL,
-  weather_lon DOUBLE PRECISION NOT NULL,
+  weather_lat DOUBLE PRECISION,
+  weather_lon DOUBLE PRECISION,
   last_seen   TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS boards_last_seen_idx ON boards (last_seen);
+ALTER TABLE boards ALTER COLUMN weather_lat DROP NOT NULL;
+ALTER TABLE boards ALTER COLUMN weather_lon DROP NOT NULL;
 `;
 
-interface BoardRow { code: string; entries: BoardEntry[]; weather_lat: number; weather_lon: number }
+interface BoardRow { code: string; entries: BoardEntry[]; weather_lat: number | null; weather_lon: number | null }
 
 function toBoard(r: BoardRow): Board {
   return { code: r.code, entries: r.entries, weatherLat: r.weather_lat, weatherLon: r.weather_lon };
@@ -27,13 +29,13 @@ export class PgBoardsRepo implements BoardsRepo {
     await this.pool.query(SCHEMA);
   }
 
-  async getOrCreate(code: string, defaults: { lat: number; lon: number }): Promise<Board> {
+  async getOrCreate(code: string): Promise<Board> {
     const { rows } = await this.pool.query<BoardRow>(
-      `INSERT INTO boards (code, weather_lat, weather_lon)
-       VALUES ($1, $2, $3)
+      `INSERT INTO boards (code)
+       VALUES ($1)
        ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
        RETURNING code, entries, weather_lat, weather_lon`,
-      [code, defaults.lat, defaults.lon],
+      [code],
     );
     return toBoard(rows[0]);
   }

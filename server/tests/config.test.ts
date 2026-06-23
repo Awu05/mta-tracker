@@ -6,7 +6,6 @@ describe('loadConfig', () => {
     const c = loadConfig({});
     expect(c.displayMode).toBe('auto');
     expect(c.port).toBe(8080);
-    expect(c.weatherLat).toBeCloseTo(40.7128);
     expect(c.databaseUrl).toBe('');
     expect(c.activeTtlMs).toBe(7 * 24 * 60 * 60 * 1000);
     expect(c.mtaApiKey).toBe('');

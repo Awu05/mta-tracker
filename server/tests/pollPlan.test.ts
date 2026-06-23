@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildPollPlan } from '../src/boards/pollPlan';
 import type { Board } from '../src/types';
 
-const board = (over: Partial<Board>): Board => ({ code: 'c', entries: [], weatherLat: 40.75, weatherLon: -73.99, ...over });
+const board = (over: Partial<Board>): Board => ({ code: 'c', entries: [], weatherLat: null, weatherLon: null, ...over });
 
 describe('buildPollPlan', () => {
   it('dedupes subway ids, bus codes, and rounded locations across boards', () => {
@@ -21,5 +21,11 @@ describe('buildPollPlan', () => {
 
   it('returns empty arrays for no boards', () => {
     expect(buildPollPlan([])).toEqual({ subwayIds: [], busCodes: [], locations: [] });
+  });
+
+  it('a board with null coords contributes no location', () => {
+    const plan = buildPollPlan([board({ entries: [{ id: '1', type: 'subway' }] })]);
+    expect(plan.locations).toEqual([]);
+    expect(plan.subwayIds).toEqual(['1']);
   });
 });
