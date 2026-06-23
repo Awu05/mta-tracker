@@ -305,6 +305,13 @@ body {
   color: var(--muted); cursor: pointer; padding: 4px 10px; font-size: 13px;
 }
 .weather-placeholder:hover { color: var(--text); border-color: var(--muted); }
+.copy-toast {
+  margin-left: 10px; font-size: 12px; font-weight: 600; vertical-align: middle;
+  border-radius: 6px; padding: 2px 8px; animation: copy-toast-in 0.15s ease-out;
+}
+.copy-toast-ok { color: #7ee081; border: 1px solid #2f6f31; }
+.copy-toast-err { color: #f08a8a; border: 1px solid #7a3030; }
+@keyframes copy-toast-in { from { opacity: 0; } to { opacity: 1; } }
 .sortable-station { position: relative; }
 .drag-handle {
   position: absolute; left: -22px; top: 2px;

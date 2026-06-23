@@ -125,6 +125,28 @@ describe('components', () => {
     expect(screen.getByRole('button', { name: /done/i })).toBeInTheDocument();
   });
 
+  it('Header copy-link shows a success toast when the clipboard write succeeds', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    render(
+      <Header weather={null} stale={false} compact={false} onToggleCompact={vi.fn()} editMode={false} onToggleEdit={vi.fn()} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /copy board link/i }));
+    expect(writeText).toHaveBeenCalledWith(window.location.href);
+    await waitFor(() => expect(screen.getByText(/link copied/i)).toBeInTheDocument());
+    vi.unstubAllGlobals();
+  });
+
+  it('Header copy-link shows a failure toast when the clipboard write rejects', async () => {
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('denied')) } });
+    render(
+      <Header weather={null} stale={false} compact={false} onToggleCompact={vi.fn()} editMode={false} onToggleEdit={vi.fn()} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /copy board link/i }));
+    await waitFor(() => expect(screen.getByText(/could not copy/i)).toBeInTheDocument());
+    vi.unstubAllGlobals();
+  });
+
   it('StationSection renders the station name, direction, destination, and minutes', () => {
     render(
       <StationSection

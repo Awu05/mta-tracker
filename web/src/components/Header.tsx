@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import type { Weather } from '../types';
 import { Clock } from './Clock';
 import { Weather as WeatherWidget } from './Weather';
@@ -23,6 +24,25 @@ export function Header({
   forecastOpen = true,
   onToggleForecast = () => {},
 }: Props) {
+  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+  const toastTimer = useRef<number | null>(null);
+
+  function showToast(ok: boolean, text: string) {
+    setToast({ ok, text });
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2500);
+  }
+
+  async function copyLink() {
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(window.location.href);
+      showToast(true, 'Link copied to clipboard');
+    } catch {
+      showToast(false, 'Could not copy — copy the URL from your address bar');
+    }
+  }
+
   return (
     <div className="board-top">
       <div className="topbar-left">
@@ -51,12 +71,17 @@ export function Header({
         <button
           type="button"
           className="view-toggle"
-          onClick={() => { void navigator.clipboard?.writeText(window.location.href); }}
+          onClick={() => { void copyLink(); }}
           title="Copy this board's link"
           aria-label="Copy board link"
         >
           🔗 Copy link
         </button>
+        {toast && (
+          <span className={`copy-toast ${toast.ok ? 'copy-toast-ok' : 'copy-toast-err'}`} role="status">
+            {toast.ok ? '✓' : '✕'} {toast.text}
+          </span>
+        )}
       </div>
       <div className="meta">
         <Clock />
