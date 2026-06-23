@@ -105,7 +105,7 @@ example, Times Square is four ids:
 | `R16` | N Q R W |
 
 So to show *all* Times Sq trains, add all four ids via the Edit UI's station search. Most
-stations are a single id (e.g. `R01` = Astoria-Ditmars Blvd, J/Z) — see
+stations are a single id (e.g. `R01` = Astoria-Ditmars Blvd, N/W) — see
 [Finding your station id](#finding-your-station-id) if you'd rather look ids up directly.
 
 ## Compact view
@@ -152,7 +152,7 @@ name. But if you'd rather look an id up directly: station ids are GTFS parent st
 can grep it for your stop:
 
 ```bash
-grep -i "ditmars" server/src/data/stations.json   # -> "R01": { "name": "Astoria-Ditmars Blvd", "routes": ["J","Z"] }
+grep -i "ditmars" server/src/data/stations.json   # -> "R01": { "name": "Astoria-Ditmars Blvd", "routes": ["N","W"] }
 ```
 
 ### Refreshing the bundled data (optional)
