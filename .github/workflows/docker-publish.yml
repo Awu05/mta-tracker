@@ -34,9 +34,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          # amd64 (x86 servers/desktops, builds natively on the runner) +
           # arm64 (e.g. Pi Zero 2 W on 64-bit OS) + arm/v7 (32-bit ARM hosts).
-          # Both legs build under emulation, so this roughly doubles build time.
-          platforms: linux/arm64,linux/arm/v7
+          # The arm legs build under emulation (QEMU), so they dominate build time.
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/mta-tracker:latest
