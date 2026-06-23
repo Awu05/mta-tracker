@@ -100,4 +100,40 @@ describe('App', () => {
 
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
   });
+
+  it('does not show the welcome popup when the board already has stations', async () => {
+    render(<App />); // default fixture has a station
+    await waitFor(() => expect(screen.getByText('Times Sq–42 St')).toBeInTheDocument());
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows the welcome popup on an empty board with station and location inputs', async () => {
+    const emptyBoard = { ...board, stations: [] };
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.startsWith('/api/boards/')) {
+        return Promise.resolve({ ok: true, json: async () => emptyBoard });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    }));
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: /set up your board/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByPlaceholderText(/search for a station/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/city or zip/i)).toBeInTheDocument();
+  });
+
+  it('dismisses the welcome popup via the skip button', async () => {
+    const emptyBoard = { ...board, stations: [] };
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.startsWith('/api/boards/')) {
+        return Promise.resolve({ ok: true, json: async () => emptyBoard });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    }));
+    render(<App />);
+    await screen.findByRole('dialog', { name: /set up your board/i });
+    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
 });

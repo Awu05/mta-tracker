@@ -256,3 +256,29 @@ body {
 .weather-loc-row { display: flex; gap: 8px; align-items: center; }
 .weather-loc-row .search-box { flex: 1; }
 
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 24px; overflow-y: auto;
+}
+.modal-card {
+  position: relative; width: 100%; max-width: 460px; margin-top: 8vh;
+  background: var(--panel); border: 1px solid var(--divider); border-radius: 12px;
+  padding: 24px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.modal-close {
+  position: absolute; top: 8px; right: 12px;
+  background: none; border: none; color: var(--muted);
+  font-size: 26px; line-height: 1; cursor: pointer; padding: 4px;
+}
+.modal-close:hover { color: var(--text); }
+.modal-title { margin: 0 0 8px; font-size: 20px; font-weight: 700; }
+.modal-hint { margin: 0 0 16px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+.modal-skip {
+  margin-top: 16px; width: 100%;
+  border: 1px solid var(--divider); border-radius: 6px; background: none;
+  color: var(--dim); cursor: pointer; padding: 8px; font-size: 14px;
+}
+.modal-skip:hover { color: var(--text); border-color: var(--muted); }
+

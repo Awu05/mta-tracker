@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as BoardData } from './types';
 import { fetchBoard, removeStation, getBoardCode } from './api';
 import { Board } from './components/Board';
+import { WelcomeModal } from './components/WelcomeModal';
 
 const POLL_MS = 10_000;
 
@@ -18,9 +19,11 @@ export default function App() {
   const [error, setError] = useState(false);
   const [override, setOverride] = useState<boolean | null>(() => compactOverride());
   const [editMode, setEditMode] = useState(false);
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
   const timer = useRef<number | null>(null);
   const active = useRef(true);
   const code = useRef(getBoardCode());
+  const welcomeChecked = useRef(false);
 
   const reload = useCallback(async () => {
     try {
@@ -37,6 +40,15 @@ export default function App() {
     timer.current = window.setInterval(reload, POLL_MS);
     return () => { active.current = false; if (timer.current) window.clearInterval(timer.current); };
   }, [reload]);
+
+  // On the first board load of this session, open the welcome popup if the
+  // board is empty. Checked once so dismissing it doesn't reopen mid-session;
+  // a fresh page load re-checks (so an empty board prompts again).
+  useEffect(() => {
+    if (!board || welcomeChecked.current) return;
+    welcomeChecked.current = true;
+    if (board.stations.length === 0) setWelcomeOpen(true);
+  }, [board]);
 
   if (!board) {
     return <div className="loading">{error ? 'Cannot reach server…' : 'Loading…'}</div>;
@@ -73,6 +85,14 @@ export default function App() {
         onChanged={reload}
         boardCode={code.current}
       />
+      {welcomeOpen && (
+        <WelcomeModal
+          code={code.current}
+          onChanged={reload}
+          onClose={() => setWelcomeOpen(false)}
+          hasStations={board.stations.length > 0}
+        />
+      )}
     </div>
   );
 }
