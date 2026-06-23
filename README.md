@@ -25,6 +25,8 @@ Click the weather in the top bar to expand a full-width forecast (next 12 hours 
 - 🚌 **Live bus arrivals** (MTA Bus Time) for any stop(s) — a single soonest-first list per stop, with "approaching / N stops away" when there's no ETA.
 - 🏙️ **Multiple stations/stops** at once, rendered as stacked sections.
 - 🔎 **Add stations from the app** — an Edit mode lets you search a station by name and add it (no IDs), then pick from auto-suggested **nearby bus stops**. The list is saved on the server (per board) and shared by every display that opens that board's URL.
+- ↕️ **Drag-and-drop ordering** — in Edit mode, drag stations and bus stops into any order with a grab handle (keyboard- and touch-friendly); the order is saved per board and reflected on every display.
+- 👋 **First-run setup popup** — opening an empty board pops a quick walkthrough to add your first stations and a weather location (skippable), with a running summary of what you've added.
 - ⚠️ **Service alerts** per station, with severity (delay / suspended / info) inferred from the feed. They start minimized (severe alerts + a count summary) and expand on click.
 - 🎨 **Official line bullets** (correct MTA colors) for quick scanning.
 - 🌤️ **Weather + clock** in a shared top bar — a condition icon with the current temp; click it to expand a **full-width forecast** (next 12 hours + next 5 days, with precip chance) styled like the departure tables. There's no server-wide default location: weather stays hidden (with a "＋ Weather" prompt) until you set one per board.
@@ -45,7 +47,8 @@ Visiting the server for the first time creates **your own board** and redirects 
 URL, `/b/<code>` (a short random code) — a cookie remembers it, so reopening the bare host URL
 on the same device takes you back to the same board. Bookmark or share the `/b/<code>` URL
 directly to come back to it from another device, or use the **🔗 Copy link** button in the
-header. Then click **✎ Edit** to search & add stations (see
+header (it shows a toast confirming the copy, or a fallback message if the browser blocks
+clipboard access). Then click **✎ Edit** to search & add stations (see
 [Editing the board](#editing-the-board)).
 
 That's it — one container serves both the JSON API and the built web app. Board configs are
@@ -127,9 +130,14 @@ Click **✎ Edit** in the top bar. While editing you can:
 
 - **Search & add a station** — type a station name (no IDs to look up) and click a result to add it. Searching for a station that's **already on the board** just reopens its nearby-bus list, so you can come back later to add more stops.
 - **Add / remove nearby buses** — right after adding a station, a checklist of the **closest bus stops** (with their routes and distance) appears. Click anywhere on a row to toggle it: a green check adds the stop, unchecking removes it. Bus lookups need `MTA_API_KEY`.
+- **Reorder** — drag any station/bus section by its grab handle to change the order; it's saved per board and shown on every display. (Works with keyboard and touch too.)
 - **Remove** — each section shows an **×** to drop it from the board.
 - **Set the weather location** — search a city/zip or click "Use my location" to set this
   board's weather. Weather stays hidden (a "＋ Weather" prompt shows instead) until you do.
+
+The first time you open an **empty** board, a setup popup walks you through adding stations and
+a weather location (with a running summary of what's on the board); you can skip it and use
+**✎ Edit** at any time.
 
 Changes are saved on the **server** in Postgres, keyed to this board's code, and shared by
 every display that opens the same `/b/<code>` URL — edit from your phone and the kiosk/e-ink
@@ -192,6 +200,7 @@ it also registers the board's stations for polling if they aren't cached yet. Ea
   "updatedAt": "2026-06-21T14:02:11.000Z",
   "stale": false,
   "displayMode": "kiosk",
+  "compact": false,
   "weather": {
     "tempF": 79, "condition": "Overcast", "icon": "cloudy",
     "hourly": [{ "time": "2026-06-21T15:00", "tempF": 79, "icon": "cloudy", "precipPct": 10 }],
@@ -200,6 +209,7 @@ it also registers the board's stations for polling if they aren't cached yet. Ea
   "stations": [
     {
       "station": { "id": "127", "name": "Times Sq-42 St" },
+      "type": "subway",
       "updatedAt": "2026-06-21T14:02:11.000Z",
       "stale": false,
       "directions": [
@@ -225,6 +235,7 @@ Board editing (used by the Edit UI), all scoped to one board's `:code`:
 - `GET /api/nearby-buses?stationId=&code=` — nearby bus stops → `[{ code, name, routes, distanceMeters, alreadyAdded }]`.
 - `POST /api/boards/:code/stations` `{ id, type }` — add a subway station or bus stop.
 - `DELETE /api/boards/:code/stations` `{ id, type }` — remove one.
+- `PUT /api/boards/:code/stations/order` `{ order: [{ id, type }] }` — reorder the board's entries.
 - `PUT /api/boards/:code/weather` `{ lat, lon }` — set this board's weather location.
 - `GET /api/geocode?q=` — look up a place name → `[{ name, admin1, country, lat, lon }]`, used by the location picker.
 
