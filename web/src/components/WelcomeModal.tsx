@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { StationBoard, Weather } from '../types';
 import { EditPanel } from './EditPanel';
 
@@ -32,6 +32,9 @@ export function WelcomeModal({
 
   const hasStations = stations.length > 0;
   const hasAnything = hasStations || weather !== null;
+  // While the nearby-bus checklist is open, disable the modal's own Done button so
+  // it doesn't compete with the in-list "Done" (which finishes bus selection).
+  const [pickingBuses, setPickingBuses] = useState(false);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -77,8 +80,8 @@ export function WelcomeModal({
           )}
         </div>
 
-        <EditPanel code={code} onChanged={onChanged} />
-        <button type="button" className="modal-skip" onClick={onClose}>
+        <EditPanel code={code} onChanged={onChanged} onPickingBuses={setPickingBuses} />
+        <button type="button" className="modal-skip" onClick={onClose} disabled={pickingBuses}>
           {hasStations ? 'Done' : 'Skip for now'}
         </button>
       </div>

@@ -281,6 +281,8 @@ body {
   color: var(--dim); cursor: pointer; padding: 8px; font-size: 14px;
 }
 .modal-skip:hover { color: var(--text); border-color: var(--muted); }
+.modal-skip:disabled { opacity: .45; cursor: not-allowed; }
+.modal-skip:disabled:hover { color: var(--dim); border-color: var(--divider); }
 
 .welcome-summary {
   margin: 0 0 4px; padding: 12px;

@@ -309,6 +309,34 @@ describe('components', () => {
     expect(screen.getByRole('button', { name: /skip for now/i })).toBeInTheDocument();
   });
 
+  it('WelcomeModal disables its big Done button while the nearby-bus checklist is open', async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.startsWith('/api/stations/search')) {
+        return Promise.resolve({ ok: true, json: async () => [{ id: '127', name: 'Times Sq', routes: ['1'] }] });
+      }
+      if (url.includes('/stations') && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, status: 201, json: async () => ({}) });
+      }
+      if (url.startsWith('/api/nearby-buses')) {
+        return Promise.resolve({ ok: true, json: async () => [{ code: 'B1', name: 'Bus stop 1', routes: ['B62'], distanceMeters: 80, alreadyAdded: false }] });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<WelcomeModal code="c1" stations={[]} weather={null} onChanged={() => {}} onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: /skip for now/i })).not.toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText(/search for a station/i), { target: { value: 'times' } });
+    fireEvent.click(await screen.findByText('Times Sq'));
+    await screen.findByText(/nearby bus stops/i);
+
+    // The big modal button is disabled while picking buses; the in-list "Done" finishes.
+    expect(screen.getByRole('button', { name: /skip for now/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /^done$/i }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /skip for now/i })).not.toBeDisabled());
+  });
+
   it('Header shows the weather placeholder when weather is null and calls onToggleEdit on click', () => {
     const onToggleCompact = vi.fn();
     const onToggleEdit = vi.fn();

@@ -1,10 +1,20 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { SearchResult, NearbyStop, GeoResult } from '../api';
 import { searchStations, fetchNearbyBuses, addStation, removeStation, setWeather, geocode } from '../api';
 
 const DEBOUNCE_MS = 250;
 
-export function EditPanel({ code, onChanged }: { code: string; onChanged: () => void }) {
+export function EditPanel({
+  code,
+  onChanged,
+  onPickingBuses,
+}: {
+  code: string;
+  onChanged: () => void;
+  /** Notifies the parent when the nearby-bus checklist is showing, so it can
+   *  (e.g.) disable its own "Done" button to avoid two competing Done actions. */
+  onPickingBuses?: (picking: boolean) => void;
+}) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [justAdded, setJustAdded] = useState<{ id: string; name: string } | null>(null);
@@ -18,6 +28,11 @@ export function EditPanel({ code, onChanged }: { code: string; onChanged: () => 
   const [places, setPlaces] = useState<GeoResult[]>([]);
   const placeSeq = useRef(0);
   const placeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const pickingBuses = justAdded !== null && nearby.length > 0;
+  useEffect(() => {
+    onPickingBuses?.(pickingBuses);
+  }, [pickingBuses, onPickingBuses]);
 
   function onQueryChange(q: string) {
     setQuery(q);
